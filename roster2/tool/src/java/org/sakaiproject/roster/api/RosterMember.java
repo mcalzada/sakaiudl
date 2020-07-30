@@ -73,6 +73,8 @@ public class RosterMember {
 	private User user;
 	private boolean instructor;
 
+	private String dni;
+	
 	public void addGroup(String groupId, String groupTitle) {
 
 		if (null == groupId) {
