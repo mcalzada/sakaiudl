@@ -72,6 +72,8 @@ public class RosterMember {
 	private long lastVisitTime;
 	private User user;
 
+	private String dni;
+	
 	public void addGroup(String groupId, String groupTitle) {
 
 		if (null == groupId) {
