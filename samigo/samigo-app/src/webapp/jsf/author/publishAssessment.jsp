@@ -181,6 +181,8 @@
 	<h:panelGroup>
 	<h:outputText value="#{assessmentSettingsMessages.the_time_limit_is} #{assessmentSettings.timedHours} #{assessmentSettingsMessages.hours}, #{assessmentSettings.timedMinutes} #{assessmentSettingsMessages.minutes}. #{assessmentSettingsMessages.submit_when_time_is_up}" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true' && assessmentSettings.timedMinutes != 0}"/>
 	<h:outputText value="#{assessmentSettingsMessages.the_time_limit_is} #{assessmentSettings.timedHours} #{assessmentSettingsMessages.hours}. #{assessmentSettingsMessages.submit_when_time_is_up}" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true' && assessmentSettings.timedMinutes == 0}"/>
+	<h:outputText value="<br/><b>#{assessmentSettingsMessages.assessment_advice_title_timed}</b>" escape="false" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true'}"/>
+	<h:outputText value="#{assessmentSettingsMessages.assessment_advice_timed}<br/>" escape="false" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true'}"/>
 	<h:outputText rendered="#{assessmentSettings.valueMap.hasTimeAssessment ne 'true'}" value="#{assessmentSettingsMessages.there_is_no_time_limit}" />
 		
 		<h:outputText value=" #{assessmentSettingsMessages.student_submit_unlimited_times}" rendered="#{assessmentSettings.unlimitedSubmissions eq '1'}" />
@@ -219,6 +221,18 @@
 			<f:param value="#{assessmentSettings.feedbackDateInClientTimezoneString}" />
 			<f:param value="#{assessmentSettings.feedbackEndDateInClientTimezoneString}" />
 		</h:outputFormat>
+	</h:panelGroup>
+	<h:panelGroup>
+		<f:verbatim><br/></f:verbatim>
+		<f:verbatim><b></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_title}" escape="false"/>
+		<f:verbatim></b></f:verbatim>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_1}" escape="false"/>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_2}" escape="false"/>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_3}" escape="false"/>
 	</h:panelGroup>
 
 	<f:verbatim><br/></f:verbatim>
@@ -287,6 +301,8 @@
 		<h:panelGroup>
 		<h:outputText value="#{assessmentSettingsMessages.the_time_limit_is} #{publishedSettings.timedHours} #{assessmentSettingsMessages.hours}, #{publishedSettings.timedMinutes} #{assessmentSettingsMessages.minutes}. #{assessmentSettingsMessages.submit_when_time_is_up}" rendered="#{publishedSettings.valueMap.hasTimeAssessment eq 'true' && publishedSettings.timedMinutes != 0}"/>
 		<h:outputText value="#{assessmentSettingsMessages.the_time_limit_is} #{publishedSettings.timedHours} #{assessmentSettingsMessages.hours}. #{assessmentSettingsMessages.submit_when_time_is_up}" rendered="#{publishedSettings.valueMap.hasTimeAssessment eq 'true' && publishedSettings.timedMinutes == 0}"/>
+		<h:outputText value="<br/><b>#{assessmentSettingsMessages.assessment_advice_title_timed}</b>" escape="false" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true'}"/>
+		<h:outputText value="#{assessmentSettingsMessages.assessment_advice_timed}<br/>" escape="false" rendered="#{assessmentSettings.valueMap.hasTimeAssessment eq 'true'}"/>		
 		<h:outputText rendered="#{publishedSettings.valueMap.hasTimeAssessment ne 'true'}" value="#{assessmentSettingsMessages.there_is_no_time_limit}" />
 
 			<h:outputText value=" #{assessmentSettingsMessages.student_submit_unlimited_times}" rendered="#{publishedSettings.unlimitedSubmissions eq '1'}" />
@@ -325,6 +341,18 @@
 			<f:param value="#{assessmentSettings.feedbackDateInClientTimezoneString}" />
 			<f:param value="#{assessmentSettings.feedbackEndDateInClientTimezoneString}" />
 		</h:outputFormat>
+	</h:panelGroup>
+	<h:panelGroup>
+		<f:verbatim><br/></f:verbatim>
+		<f:verbatim><b></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_title}" escape="false"/>
+		<f:verbatim></b></f:verbatim>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_1}" escape="false"/>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_2}" escape="false"/>
+		<f:verbatim><br/></f:verbatim>
+		<h:outputText value=" #{assessmentSettingsMessages.assessment_advice_3}" escape="false"/>
 	</h:panelGroup>
 
 	<f:verbatim><br/></f:verbatim>
