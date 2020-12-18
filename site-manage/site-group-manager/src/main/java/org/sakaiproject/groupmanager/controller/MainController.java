@@ -64,6 +64,12 @@ public class MainController {
     @Autowired
     private PreferencesService preferencesService;
 
+    @Autowired
+    private SessionManager sessionManager; 
+
+    @Autowired
+    private PreferencesService preferencesService;
+
     @RequestMapping(value = {"/", "/index"})
     public String showIndex(Model model, HttpServletRequest request, HttpServletResponse response) {
         log.debug("showIndex()");
@@ -72,6 +78,11 @@ public class MainController {
         final Locale locale = StringUtils.isNotBlank(userId) ? preferencesService.getLocale(userId) : Locale.getDefault();
         LocaleResolver localeResolver = RequestContextUtils.getLocaleResolver(request);
         localeResolver.setLocale(request, response, locale);
+
+	String userId = sessionManager.getCurrentSessionUserId();
+	final Locale locale = StringUtils.isNotBlank(userId) ? preferencesService.getLocale(userId) : Locale.getDefault();
+	LocaleResolver localeResolver = RequestContextUtils.getLocaleResolver(request);
+ 	localeResolver.setLocale(request, response, locale);
 
         Optional<Site> siteOptional = sakaiService.getCurrentSite();
         if (!siteOptional.isPresent()) {

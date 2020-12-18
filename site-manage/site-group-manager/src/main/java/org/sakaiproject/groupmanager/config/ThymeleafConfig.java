@@ -26,6 +26,7 @@ import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.ViewResolver;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.web.servlet.i18n.SessionLocaleResolver;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.spring4.SpringTemplateEngine;
 import org.thymeleaf.spring4.templateresolver.SpringResourceTemplateResolver;
@@ -82,6 +83,11 @@ public class ThymeleafConfig extends WebMvcConfigurerAdapter implements Applicat
     @Bean
     public LocaleResolver localeResolver() {
         return new SessionLocaleResolver();
+    }
+
+    @Bean
+    public LocaleResolver localeResolver() {
+	    return new SessionLocaleResolver();
     }
 
 }
