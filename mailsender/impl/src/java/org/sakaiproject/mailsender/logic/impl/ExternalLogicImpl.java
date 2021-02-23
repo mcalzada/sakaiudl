@@ -68,8 +68,6 @@ import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.user.api.UserNotDefinedException;
 import org.sakaiproject.util.Validator;
-import org.sakaiproject.component.cover.ComponentManager;
-import org.sakaiproject.util.api.FormattedText;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -319,9 +317,7 @@ public class ExternalLogicImpl implements ExternalLogic
 		mailHeaders.add("Mime-Version: 1.0");
 		mailHeaders.add("From: " + sender);
 		mailHeaders.add("Reply-To: " + sender);
-		
-		System.out.println("A addToArchive: mailHeaders = " +mailHeaders);
-		System.out.println("A addToArchive: BODY = " +body);
+
 		try
 		{
 			// This way actually sends the email too
@@ -441,9 +437,6 @@ public class ExternalLogicImpl implements ExternalLogic
 		{
 			msg.setContentType(ContentType.TEXT_PLAIN);
 		}
-
-		String msgcontent = ComponentManager.get(FormattedText.class).convertFormattedTextToPlaintext(content);
-
 		msg.setBody(msgcontent);
 
         if (attachments != null)
@@ -465,10 +458,6 @@ public class ExternalLogicImpl implements ExternalLogic
 		// add a special header for tracking
 		msg.addHeader("X-Mailer", "sakai-mailsender");
 		msg.addHeader("Content-Transfer-Encoding", "quoted-printable");
-
-
-		System.out.println("A sendEmail: BODY = " +msgcontent);
-		System.out.println("A sendEmail: msg = " +msg);
 
 		try
 		{
