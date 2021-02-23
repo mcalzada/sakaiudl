@@ -317,7 +317,6 @@ public class ExternalLogicImpl implements ExternalLogic
 		mailHeaders.add("Mime-Version: 1.0");
 		mailHeaders.add("From: " + sender);
 		mailHeaders.add("Reply-To: " + sender);
-
 		try
 		{
 			// This way actually sends the email too
@@ -428,7 +427,7 @@ public class ExternalLogicImpl implements ExternalLogic
 		msg.setFrom(new EmailAddress(replyToEmail, replyToName));
 
 		msg.setSubject(subject);
-		 //set content type based on editor used
+		// set content type based on editor used
 		if (useRTE())
 		{
 			msg.setContentType(ContentType.TEXT_HTML);
@@ -437,7 +436,7 @@ public class ExternalLogicImpl implements ExternalLogic
 		{
 			msg.setContentType(ContentType.TEXT_PLAIN);
 		}
-		msg.setBody(msgcontent);
+		msg.setBody(content);
 
         if (attachments != null)
         {
