@@ -120,7 +120,7 @@ public class GradingServiceTest {
         Assert.assertEquals(3, results.size());
         Assert.assertEquals("{var0}+{var1}+{var2}+{var3}+{var4}", results.get(0));
         Assert.assertEquals("{var1}*2", results.get(1));
-        Assert.assertEquals("{var2}", results.get(2));
+        Assert.assertEquals("[{var2}]", results.get(2));
 
     }
 
