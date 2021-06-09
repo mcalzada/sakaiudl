@@ -31,7 +31,6 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.spring4.SpringTemplateEngine;
 import org.thymeleaf.spring4.templateresolver.SpringResourceTemplateResolver;
 import org.thymeleaf.spring4.view.ThymeleafViewResolver;
-import org.springframework.web.servlet.i18n.SessionLocaleResolver;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.ITemplateResolver;
 
@@ -78,11 +77,6 @@ public class ThymeleafConfig extends WebMvcConfigurerAdapter implements Applicat
         templateResolver.setSuffix(".html");
         templateResolver.setTemplateMode(TemplateMode.HTML);
         return templateResolver;
-    }
-    
-    @Bean
-    public LocaleResolver localeResolver() {
-        return new SessionLocaleResolver();
     }
 
     @Bean
