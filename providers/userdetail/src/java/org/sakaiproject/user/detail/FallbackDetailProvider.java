@@ -36,6 +36,7 @@ public class FallbackDetailProvider implements CandidateDetailProvider {
 	
 	private final static String PROP_USE_INSTITUTIONAL_ANONYMOUS_ID = "useInstitutionalAnonymousID";
 	private final static String PROP_DISPLAY_ADDITIONAL_INFORMATION = "displayAdditionalInformation";
+	private final static String PROP_DISPLAY_SPECIAL_NEEDS = "displaySpecialNeeds";
 	private final static String PROP_USE_INSTITUTIONAL_NUMERIC_ID = "useInstitutionalNumericID";
 
 	private ServerConfigurationService serverConfigurationService;
@@ -81,15 +82,24 @@ public class FallbackDetailProvider implements CandidateDetailProvider {
 		return false;
 	}
 	
+	public Optional<List<String>> getSpecialNeeds(User user, Site site) {
+		return Optional.empty();
+	}
+	
+	public boolean isSpecialNeedsEnabled(Site site) {
+		try {
+			return (serverConfigurationService.getBoolean(PROP_DISPLAY_SPECIAL_NEEDS, true) || (site != null && Boolean.parseBoolean(site.getProperties().getProperty(PROP_DISPLAY_SPECIAL_NEEDS))));
+		} catch(Exception ignore) {}
+		return false;
+	}
+	
 	@Override
 	public Optional<String> getInstitutionalNumericId(User user, Site site)
 	{
 		log.debug("Getting student number from fallback provider");
-		if (user != null && isInstitutionalNumericIdEnabled(site))
-		{
-			return Optional.of(("no-student-number:" + user.getId()));
-		}
 		
+		// If no student number is available, return empty
+	
 		return Optional.empty();
 	}
 	
@@ -103,7 +113,7 @@ public class FallbackDetailProvider implements CandidateDetailProvider {
 	public boolean isInstitutionalNumericIdEnabled(Site site)
 	{
 		try {
-			return (serverConfigurationService.getBoolean(PROP_USE_INSTITUTIONAL_NUMERIC_ID, false)
+			return (serverConfigurationService.getBoolean(PROP_USE_INSTITUTIONAL_NUMERIC_ID, true)
 					|| (site != null && Boolean.parseBoolean(site.getProperties().getProperty(PROP_USE_INSTITUTIONAL_NUMERIC_ID))));
 		} catch(Exception ignore) {}
 		return false;
