@@ -450,8 +450,7 @@ public class PublishedAssessmentFacadeQueries extends HibernateDaoSupport implem
 		while (o.hasNext()) {
 			ItemFeedback itemFeedback = (ItemFeedback) o.next();
 			PublishedItemFeedback publishedItemFeedback = new PublishedItemFeedback(
-					publishedItem, itemFeedback.getTypeId(), itemFeedback
-							.getText());
+					publishedItem, itemFeedback.getTypeId(), itemFeedback.getText(), itemFeedback.getTextValue());
 			h.add(publishedItemFeedback);
 		}
 		return h;
