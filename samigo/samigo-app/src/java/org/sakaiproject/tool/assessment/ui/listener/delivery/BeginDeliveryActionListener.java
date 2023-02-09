@@ -37,6 +37,9 @@ import org.sakaiproject.component.cover.ComponentManager;
 import org.sakaiproject.component.api.ServerConfigurationService;
 import org.sakaiproject.rubrics.api.RubricsConstants;
 import org.sakaiproject.rubrics.api.RubricsService;
+import org.sakaiproject.site.api.SiteService;
+import org.sakaiproject.tool.api.ToolManager;
+import org.sakaiproject.tool.assessment.api.SamigoApiFactory;
 import org.sakaiproject.tool.assessment.data.dao.assessment.AssessmentAccessControl;
 import org.sakaiproject.tool.assessment.data.dao.assessment.PublishedFeedback;
 import org.sakaiproject.tool.assessment.data.dao.grading.AssessmentGradingData;
@@ -50,8 +53,13 @@ import org.sakaiproject.tool.assessment.facade.AgentFacade;
 import org.sakaiproject.tool.assessment.facade.AssessmentFacade;
 import org.sakaiproject.tool.assessment.facade.PublishedAssessmentFacade;
 import org.sakaiproject.tool.assessment.services.GradingService;
+import org.sakaiproject.tool.assessment.services.PersistenceService;
 import org.sakaiproject.tool.assessment.services.assessment.AssessmentService;
 import org.sakaiproject.tool.assessment.services.assessment.PublishedAssessmentService;
+import org.sakaiproject.tool.assessment.services.assessment.SecureDeliverySeb;
+import org.sakaiproject.tool.assessment.shared.api.assessment.SecureDeliveryServiceAPI;
+import org.sakaiproject.tool.assessment.shared.api.assessment.SecureDeliveryServiceAPI.Phase;
+import org.sakaiproject.tool.assessment.shared.api.assessment.SecureDeliveryServiceAPI.PhaseStatus;
 import org.sakaiproject.tool.assessment.ui.bean.author.AssessmentBean;
 import org.sakaiproject.tool.assessment.ui.bean.author.AuthorBean;
 import org.sakaiproject.tool.assessment.ui.bean.authz.AuthorizationBean;
@@ -96,6 +104,7 @@ public class BeginDeliveryActionListener implements ActionListener
     String actionString = ContextUtil.lookupParam("actionString");
     String publishedId = ContextUtil.lookupParam("publishedId");
     String assessmentId = (String)ContextUtil.lookupParam("assessmentId");
+    SecureDeliveryServiceAPI secureDelivery = SamigoApiFactory.getInstance().getSecureDeliveryServiceAPI();
 
     if (StringUtils.isNotBlank(actionString)) {
       // if actionString is null, likely that action & actionString has been set already, 
@@ -169,6 +178,7 @@ public class BeginDeliveryActionListener implements ActionListener
     delivery.setLastTimer(0);
     delivery.setTimeLimit("0");
     */
+
     delivery.setBeginAssessment(true);
     delivery.setTimeStamp((new Date()).getTime());
     delivery.setRedrawAnchorName("");
@@ -180,6 +190,19 @@ public class BeginDeliveryActionListener implements ActionListener
     Long sizeMax = Long.valueOf(serverConfigurationService.getInt("samigo.sizeMax", 20480));
     delivery.setFileUploadSizeMax(Math.round(sizeMax.floatValue()/1024));
     delivery.setPublishedAssessment(pub);
+
+    if (secureDelivery.isSecureDeliveryAvaliable(Long.valueOf(delivery.getPublishedAssessment().getPublishedAssessmentId()))) {
+      String secureDeliveryModuleId = pub.getAssessmentMetaDataByLabel(SecureDeliveryServiceAPI.MODULE_KEY);
+
+      if (StringUtils.equals(secureDeliveryModuleId, SecureDeliverySeb.MODULE_NAME)) {
+        delivery.setSebSetup(true);
+        delivery.setSecureDeliveryHTMLFragment(secureDelivery.getHTMLFragment(secureDeliveryModuleId, pub,
+            null, Phase.ASSESSMENT_START, PhaseStatus.FAILURE, null));
+        return;
+      } else {
+        delivery.setSebSetup(false);
+      }
+    }
 
     // populate backing bean from published assessment
     populateBeanFromPub(delivery, pub);
