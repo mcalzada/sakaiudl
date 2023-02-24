@@ -1,5 +1,6 @@
 import {loadProperties} from "/webcomponents/sakai-i18n.js";
 
+roster.members = [];
 roster.helpers = {};
 
 roster.setupPrintButton = function () {
@@ -109,6 +110,9 @@ roster.addHideOptionHandlers = function () {
 };
 
 roster.addAdditionalInfoModalHandlers = function () {
+
+  // Remove previous events over the buttons.
+  $('button.additional-info').off("click");
 
   $('button.additional-info').click(function (e) {
 
@@ -431,6 +435,12 @@ roster.renderMembership = function (options) {
         m.hasAdditionalNotes = false && m.additionalNotes && m.additionalNotes.length > 0;
         
         m.hasAdditionalInfo = m.hasSpecialNeeds || m.hasAdditionalNotes;
+
+        // Append to the roster members the new loaded members.
+        if (!roster.members.find(item => item.userId === m.userId)) {
+          roster.members.push(m);
+        }
+
       });
 
       if (options.replace) {
@@ -456,8 +466,6 @@ roster.renderMembership = function (options) {
 
         $(window).off('scroll.roster');
       }
-
-      roster.members = members;
 
       roster.renderMembers(members, $('#roster-members'), enrollmentsMode);
 
