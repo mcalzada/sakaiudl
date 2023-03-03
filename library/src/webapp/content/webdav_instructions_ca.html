@@ -127,6 +127,7 @@
 <body onload="(window.frameElement) ? setMainFrameHeight(trim(window.frameElement.id)):'';localizeData()">
 		<div id="tabs" style="font-size: 95%">
 		<ul>
+			<li><a href="#instr-windows1011">Windows 10-11</a></li>	
 			<li><a href="#instr-windows8">Windows 8</a></li>
 			<li><a href="#instr-windows7">Windows 7</a></li>
 			<li><a href="#instr-mac">Mac</a></li>
@@ -134,6 +135,36 @@
 			<li><a href="#instr-other">Altres versions</a></li>
 		</ul>
 
+		<div id="instr-windows1011">
+			<h4>Configurar WebDAV per a Windows 11/10</h4>
+			<p>
+				<strong>Nota</strong>: Ha d'haver almenys un objecte (fitxer, carpeta, etc.) als recursos de l'espai abans de començar la configuració. Aquesta configuració és necessària per a cada espai de la plataforma si es vol usar el protocol WebDav per transferir fitxers de l'ordinador a l'espai o entre espais.
+			</p>
+			<ol>
+				<li>Obriu l'Explorador de fitxers des de la barra de tasques o el menú Inici, o bé premeu la tecla del logotip de Windows + E.
+				</li>
+				<li>Segons tingueu Windows 11 o Windows 10 seguiu el pas indicat als punts (a) o (b):
+					<ul>
+						a)<strong> WINDOWS 11</strong>: Seleccioneu <strong>Aquest equip</strong> al panell esquerre. Després, a la cinta de l'<strong>Explorador de fitxers</strong>, seleccioneu <strong>Més… > Assignar unitat de xarxa.</strong>
+						<p><img src="win1011img2a.png" alt="Explorador d'arxius de Windows 11" /></p>
+					</ul>
+					<ul>
+						b)<strong>WINDOWS 10</strong>: Seleccioneu <strong>Aquest equip</strong> al panell esquerre. Després, a la pestanya <strong>Equip</strong>, seleccioneu <strong>Assignar unitat de xarxa.</strong>
+						<p><img src="win1011img2b.png" alt="Explorador d'arxius de Windows 10" /></p>
+					</ul>										
+				</li>
+				<li>A la llista <strong>Unitat</strong>, seleccioneu una lletra d'unitat. (Serveix qualsevol lletra disponible).					
+				</li>
+				<li>Al quadre <strong>Carpeta</strong>, copieu i empegueu l'adreça URL que trobareu al PAS 1 d'aquesta pàgina (la que comença per https://cv.udl.cat/dav/). Si voleu connectar-vos-hi de nou cada cop que inicieu sessió al vostre PC, activeu <strong>Torna a connectar en iniciar sessió.</strong>
+				</li>
+				<li>Seleccioneu <strong>Finalitzar.</strong>
+				</li>
+				<li>A la finestra emergent, accediu amb el vostre usuari i contrasenya UdL.
+				</li>
+				<li>Ja podeu copiar i enganxar o arrastrar arxius i carpetes des del vostre ordinador cap a aquesta nova unitat. Els arxius seran accessibles des de l'eina <strong>Recursos</strong> de l'espai corresponent al campus virtual.
+				</li>
+			</ol>
+		</div>
 		<div id="instr-windows8">
 			<h4>Configurar WebDAV per a Windows 8</h4>
 			<p>
