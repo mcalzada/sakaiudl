@@ -99,6 +99,8 @@
       toolName =  i18n.lessonsTool;
     } else if ("profile" === tool) {
       toolName = i18n.socialAlerts;
+    } else if ("messages" === tool) {
+      toolName = i18n.messagesTool;
     }
 
     return `
@@ -171,13 +173,16 @@
     } else if ("profile" === bunch.type) {
       faClass = "icon-sakai--sakai-profile2";
       social = true;
+    } else if ("messages" === bunch.type) {
+      faClass = "icon-sakai--sakai-messages";
+      messageTemplate = i18n.privateMessageWasRead;
     }
 
     markup = getBunchedHeader(bunch, faClass, i18n);
 
     bunch.alerts.forEach(alert => {
 
-      if ("asn.new.assignment" === alert.event || "asn.revise.access" === alert.event) {
+      if ("asn.new.assignment" === alert.event || "asn.revise.access" === alert.event || "asn.available.assignment" === alert.event) {
         messageTemplate = i18n.assignmentCreated;
       } else if ("asn.grade.submission" === alert.event) {
         messageTemplate = i18n.assignmentSubmissionGraded;
@@ -193,6 +198,8 @@
         messageTemplate = i18n.wallPost;
       } else if ("profile.wall.item.comment.new" === alert.event) {
         messageTemplate = i18n.postComment;
+      } else if ("message.read.receipt" === alert.event) {
+        messageTemplate = i18n.privateMessageWasRead;
       }
 
       if (social) {
@@ -239,6 +246,7 @@
             createBunches(portal.bullhorns.alerts, "commons").forEach(alerts => allBunches.push({ type: "commons", alerts: alerts }));
             createBunches(portal.bullhorns.alerts, "lessonbuilder").forEach(alerts => allBunches.push({ type: "lessonbuilder", alerts: alerts }));
             createBunches(portal.bullhorns.alerts, "profile").forEach(alerts => allBunches.push({ type: "profile", alerts: alerts }));
+            createBunches(portal.bullhorns.alerts, "message").forEach(alerts => allBunches.push({ type: "messages", alerts: alerts }));
 
             allBunches.forEach(b => {
               b.alerts.sort((first, second) => first.eventDate.epochSecond - second.eventDate.epochSecond);
