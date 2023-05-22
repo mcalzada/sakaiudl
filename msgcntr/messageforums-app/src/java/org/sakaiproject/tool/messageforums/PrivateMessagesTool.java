@@ -328,6 +328,8 @@ public class PrivateMessagesTool {
   private String composeSendAsPvtMsg=SET_AS_YES; // currently set as Default as change by user is allowed
   @Setter
   private boolean booleanEmailOut = ServerConfigurationService.getBoolean("mc.messages.ccEmailDefault", false);
+  @Getter @Setter
+  private boolean booleanReadReceipt;
   @Getter
   private String composeSubject;
   @Getter
@@ -1710,6 +1712,7 @@ public void processChangeSelectView(ValueChangeEvent eve)
     this.getAllAttachments().clear();
     //reset label
     this.setSelectedLabel("pvt_priority_normal");
+    setBooleanReadReceipt(false);
   }
   
   public String processPvtMsgPreview(){
@@ -1786,8 +1789,9 @@ public void processChangeSelectView(ValueChangeEvent eve)
     
     pMsg.setExternalEmail(booleanEmailOut);
     Map<User, Boolean> recipients = getRecipients();
-    
-    prtMsgManager.sendPrivateMessage(pMsg, recipients, isSendEmail()); 
+        
+    prtMsgManager.sendPrivateMessage(pMsg, recipients, isSendEmail(), booleanReadReceipt); 
+
     // if you are sending a reply 
     Message replying = pMsg.getInReplyTo();
     if (replying!=null) {
@@ -1907,7 +1911,7 @@ public void processChangeSelectView(ValueChangeEvent eve)
     List<MembershipItem> draftRecipients = drDelegate.getDraftRecipients(getSelectedComposeToList(), courseMemberMap);
     List<MembershipItem> draftBccRecipients = drDelegate.getDraftRecipients(getSelectedComposeBccList(), courseMemberMap);
 
-    prtMsgManager.sendPrivateMessage(dMsg, getRecipients(), isSendEmail(), draftRecipients, draftBccRecipients);
+    prtMsgManager.sendPrivateMessage(dMsg, getRecipients(), isSendEmail(), draftRecipients, draftBccRecipients, booleanReadReceipt);
 
     //reset contents
     resetComposeContents();
@@ -2383,7 +2387,7 @@ public void processChangeSelectView(ValueChangeEvent eve)
 
     	Map<User, Boolean> recipients = getRecipients();
 
-    	prtMsgManager.sendPrivateMessage(rrepMsg, recipients, isSendEmail());
+      prtMsgManager.sendPrivateMessage(rrepMsg, recipients, isSendEmail(), booleanReadReceipt);
     	
     	if(!rrepMsg.getDraft()){
     		prtMsgManager.markMessageAsRepliedForUser(getReplyingMessage());
@@ -2749,7 +2753,7 @@ public void processChangeSelectView(ValueChangeEvent eve)
     private void processPvtMsgForwardSendHelper(PrivateMessage rrepMsg){
     	Map<User, Boolean> recipients = getRecipients();
     	
-    	prtMsgManager.sendPrivateMessage(rrepMsg, recipients, isSendEmail());
+      prtMsgManager.sendPrivateMessage(rrepMsg, recipients, isSendEmail(), booleanReadReceipt);
 
     	if(!rrepMsg.getDraft()){
     		//update Synoptic tool info
@@ -3014,7 +3018,7 @@ public void processChangeSelectView(ValueChangeEvent eve)
 		  }
 	  }
 	  if(!preview){
-	          prtMsgManager.sendPrivateMessage(rrepMsg, returnSet, isSendEmail());
+		  prtMsgManager.sendPrivateMessage(rrepMsg, returnSet, isSendEmail(), booleanReadReceipt);
 
 		  if(!rrepMsg.getDraft()){
 			  prtMsgManager.markMessageAsRepliedForUser(getReplyingMessage());
