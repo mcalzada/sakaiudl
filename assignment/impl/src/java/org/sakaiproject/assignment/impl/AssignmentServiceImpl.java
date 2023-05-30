@@ -1203,8 +1203,8 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
 
                 // copy tags
                 if (serverConfigurationService.getBoolean("tagservice.enable.integrations", true)) {
-                    List<String> tagIds = tagService.getTagAssociationIds(assignmentId);
-                    tagService.updateTagAssociations(assignment.getContext(), assignment.getId(), tagIds);
+                    List<String> tagIds = tagService.getTagAssociationIds(assignment.getContext(), assignmentId);
+                    tagService.updateTagAssociations(assignment.getContext(), assignment.getId(), tagIds, true);
                 }
 
                 String reference = AssignmentReferenceReckoner.reckoner().assignment(assignment).reckon().getReference();
@@ -5170,5 +5170,11 @@ public class AssignmentServiceImpl implements AssignmentService, EntityTransferr
     @Override
     public String getContentReviewServiceName() {
         return this.contentReviewService.getServiceName();
+    }
+
+    @Override
+    public boolean allowAddTags(String context) {
+        String resourceString = AssignmentReferenceReckoner.reckoner().context(context).reckon().getReference();
+        return permissionCheck(TagService.TAGSERVICE_MANAGE_PERMISSION, resourceString, null);
     }
 }

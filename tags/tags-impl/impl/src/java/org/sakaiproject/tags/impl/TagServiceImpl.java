@@ -58,7 +58,6 @@ import org.sakaiproject.tags.impl.common.SakaiI18n;
 @Slf4j
 public class TagServiceImpl implements TagService {
 
-    private static final String TAGSERVICE_MANAGE_PERMISSION =  "tagservice.manage";
     private static final String TAGSERVICE_AUTODDL_PROPERTY =  "tagservice.auto.ddl";
     private static final String SAKAI_AUTODDL_PROPERTY =  "auto.ddl";
     private static final String SAKAI_DB_VENDOR_PROPERTY =  "vendor@org.sakaiproject.db.api.SqlService";
@@ -98,14 +97,13 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public List<String> getTagAssociationIds(String itemId) {
-        List<String> tagIds = tagAssociationRepository.findTagAssociationByItemId(itemId).stream().map(TagAssociation::getTagId).collect(Collectors.toList());
-        return tagIds;
+    public List<String> getTagAssociationIds(String collectionId, String itemId) {
+        return tagAssociationRepository.findTagAssociationByCollectionAndItem(collectionId, itemId).stream().map(TagAssociation::getTagId).collect(Collectors.toList());
     }
 
     @Override
-    public List<Tag> getAssociatedTagsForItem(String itemId) {//if we turn Tag object to jpa we could add a foreign key to the association and retrieve them directly
-        List<String> tagIds = getTagAssociationIds(itemId);
+    public List<Tag> getAssociatedTagsForItem(String collectionId, String itemId) {//if we turn Tag object to jpa we could add a foreign key to the association and retrieve them directly
+        List<String> tagIds = getTagAssociationIds(collectionId, itemId);
         List<Tag> associatedTags = new ArrayList<>();
         for (String tagId : tagIds) {
             Tag t = tags.getForId(tagId).orElse(null);
@@ -119,31 +117,36 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public void updateTagAssociations(String siteId, String itemId, List<String> tagIds) {
-
+    public void updateTagAssociations(String collectionId, String itemId, List<String> tagIds, boolean isSite) {
         // create collection if it doesn't exist
-        TagCollection col = tagCollections.getForId(siteId).orElse(null);
+        TagCollection col = tagCollections.getForId(collectionId).orElse(null);
         if (col == null) {
-			col = new TagCollection(siteId, siteId, "Site " + siteId, null, 0L, null, null, null, 0L, Boolean.FALSE, Boolean.FALSE, 0L, 0L);
+            I18n i18n = getI18n(this.getClass().getClassLoader(), "org.sakaiproject.tags.api.i18n.tagservice");
+            String description = i18n.t("user_collection");
+            if (isSite) {
+                description = i18n.tFormatted("site_collection", collectionId);
+            }
+            col = new TagCollection(collectionId, collectionId, description, null, 0L, null, null, null, 0L, Boolean.FALSE, Boolean.FALSE, 0L, 0L);
             tagCollections.createTagCollection(col);
         }
 
         // obtain previous asociations
-        List<String> oldAssociationIds = getTagAssociationIds(itemId);
+        List<String> oldAssociationIds = getTagAssociationIds(collectionId, itemId);
         for (String tagId : tagIds) {
             // skip if already associated or empty
             if (StringUtils.isEmpty(tagId) || oldAssociationIds.contains(tagId)) {
                 continue;
             }
+            // we cut the tag
+            if (tagId.length() > TAG_MAX_LABEL) {
+                tagId = tagId.substring(0, TAG_MAX_LABEL);
+            }
             // new association, check tag exists
             Tag t = tags.getForId(tagId).orElse(null);
             if (t == null) {
-                // new tag, we create it
-                if (tagId.length() > TAG_MAX_LABEL) {
-                    tagId = tagId.substring(0, TAG_MAX_LABEL);
-                }
-                t = new Tag(null, siteId, tagId, null, null,
-                        0L, null, 0L, null,	null, Boolean.FALSE, 0L,
+                
+                t = new Tag(null, collectionId, tagId, null, null,
+                        0L, null, 0L, null, null, Boolean.FALSE, 0L,
                         Boolean.FALSE, 0L, null, null, null, null, null);
                 String id = tags.createTag(t);
                 t.setTagId(id);
