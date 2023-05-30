@@ -9,7 +9,7 @@
 
 <f:view>
   <sakai:view toolCssHref="/messageforums-tool/css/msgcntr-qtip.css" title="#{msgs.pvt_detmsgreply}">
-    <h:form id="pvtMsgDetail">
+    <h:form id="pvtMsgDetail" onsubmit="getShadowTags('pvtMsgDetail')">
     		<script>
        			// Define i18n for js text
        			var msgs_js = { 
@@ -233,6 +233,27 @@
                 </div>
             </div>
         </div>
+
+        <h:panelGroup rendered="#{PrivateMessagesTool.canUseTags}">
+          <h4><h:outputText value="#{msgs.pvt_tags_header}" /></h4>
+          <h:inputText value="#{PrivateMessagesTool.selectedTags}" styleClass="hidden" id="tag_selector"></h:inputText>
+          <h:panelGroup styleClass="#{PrivateMessagesTool.detailMsg.isPreview || PrivateMessagesTool.detailMsg.isPreviewReply || PrivateMessagesTool.detailMsg.isPreviewReplyAll || PrivateMessagesTool.detailMsg.isPreviewForward ? 'DisableTags' : ''}">
+            <sakai-tag-selector
+              <h:panelGroup rendered="#{PrivateMessagesTool.detailMsg.isPreview || PrivateMessagesTool.detailMsg.isPreviewReply || PrivateMessagesTool.detailMsg.isPreviewReplyAll || PrivateMessagesTool.detailMsg.isPreviewForward}">
+                tabindex="-1" 
+              </h:panelGroup>
+              selected-temp='<h:outputText value="#{PrivateMessagesTool.selectedTags}"/>'
+              collection-id='<h:outputText value="#{PrivateMessagesTool.getUserId()}"/>'
+              item-id='<h:outputText value="#{PrivateMessagesTool.detailMsg.msg.id}"/>'
+              site-id='<h:outputText value="#{PrivateMessagesTool.getSiteId()}"/>'
+              tool='<h:outputText value="#{PrivateMessagesTool.getTagTool()}"/>'
+              add-new="true"
+            ></sakai-tag-selector>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{!PrivateMessagesTool.detailMsg.isPreview && !PrivateMessagesTool.detailMsg.isPreviewReply && !PrivateMessagesTool.detailMsg.isPreviewReplyAll && !PrivateMessagesTool.detailMsg.isPreviewForward}">
+            <h:commandButton action="#{PrivateMessagesTool.processPvtMsgSaveTags}" value="#{msgs.pvt_tags_save}"  />
+          </h:panelGroup>
+        </h:panelGroup>
 
 		<hr class="itemSeparator" />
 		
