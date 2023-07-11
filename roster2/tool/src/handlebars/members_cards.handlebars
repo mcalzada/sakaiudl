@@ -96,9 +96,9 @@
             {{#if ../viewGroup}}
             <div class="roster-card-label">{{tr 'facet_groups'}}</div>
             {{#if hasGroups}}
-               <div class="roster-card-value roster-group-cell">
+             <div class="roster-card-value roster-group-cell">
                        {{#if groups.[1]}}
-                               <span class="skip">{{tr 'screenreader_comboBox'}}</span>
+                               <span class="skip">{{tr 'screenreader_comboBox'}}</span>                               
                                <select class="roster-groups-selector" id="roster-groups-{{userId}}" title="{{tr 'roster_user_groups_label'}}">
                                    <option value="all">{{tr 'member_group_all_option'}}</option>
                                {{#each groups}}
@@ -109,10 +109,11 @@
                                <a href="javascript:;" class="roster-group-link" data-groupid="{{groups.[0].id}}">{{groups.[0].title}}</a>
                        {{/if}}
               </div>
-             {{else}}
-                <div class="roster-card-value roster-no-groups-label">{{tr 'roster_group_ungrouped'}}</div>
-             {{/if}}
+              
+	     {{else}}
+            	<div class="roster-card-value roster-no-groups-label">{{tr 'roster_group_ungrouped'}}</div>
             {{/if}}
+	    {{/if}}
 
             {{#if ../viewEmail}}
                 {{#if email}}
