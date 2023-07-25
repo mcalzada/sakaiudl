@@ -80,7 +80,8 @@
                 <module>login</module>
                 <module>mailarchive</module>
                 <module>mailsender</module>
-                <module>message</module>
+		<module>message</module>
+		<module>microsoft-integration</module>
                 <module>msgcntr</module>
                 <module>mycalendar</module>
                 <module>myconnections</module>
