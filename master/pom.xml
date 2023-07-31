@@ -1902,12 +1902,6 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
-        <groupId>org.sakaiproject</groupId>
-        <artifactId>sakai-onedrive-api</artifactId>
-        <version>${sakai.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
         <groupId>org.sakaiproject.microsoft</groupId>
         <artifactId>microsoft-api</artifactId>
         <version>${sakai.version}</version>
