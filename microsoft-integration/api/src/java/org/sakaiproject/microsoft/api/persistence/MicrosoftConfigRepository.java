@@ -30,6 +30,9 @@ public interface MicrosoftConfigRepository extends SerializableRepository<Micros
 	public static final String NEW_SITE_PROPERTY = PREFIX_NEWSITE + "PROPERTY";
 	public static final String NEW_SITE_SYNC_DURATION = PREFIX_NEWSITE + "SYNC_DURATION";
 
+	public static final String PREFIX_ONEDRIVE = "ONEDRIVE:";
+	public static final String ONEDRIVE_ENABLED = PREFIX_ONEDRIVE + "ENABLED";
+
 	public static final String PREFIX_JOB = "JOB:";
 	public static final String PREFIX_SITE = "SITE:";
 	public static final String JOB_SITE_TYPE = PREFIX_JOB + PREFIX_SITE + "TYPE";

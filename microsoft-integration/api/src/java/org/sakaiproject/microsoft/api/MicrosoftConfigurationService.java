@@ -36,9 +36,12 @@ public interface MicrosoftConfigurationService {
 	Map<String, MicrosoftConfigItem> getDefaultSynchronizationConfigItems();
 	Map<String, MicrosoftConfigItem> getAllSynchronizationConfigItems();
 
+		//------------------------------ ONEDRIVE -------------------------------------------------------
+	boolean isOneDriveEnabled();
+
 	//------------------------------- MICROSOFT SYNCHRONIZATION - NEW SITE ------------------------------------
-	public SakaiSiteFilter getNewSiteFilter();
-	public void saveNewSiteFilter(SakaiSiteFilter filter);
+	SakaiSiteFilter getNewSiteFilter();
+	void saveNewSiteFilter(SakaiSiteFilter filter);
 	long getSyncDuration();
 	void saveSyncDuration(long syncDuration);
 
@@ -53,7 +56,7 @@ public interface MicrosoftConfigurationService {
 	void saveMappedMicrosoftUserId(MicrosoftUserIdentifier identifier);
 
 	//------------------------------------------- COMMON ------------------------------------------------
-	public String getConfigItemValueByKey(String key);
+	String getConfigItemValueByKey(String key);
 	void saveOrUpdateConfigItem(MicrosoftConfigItem item);
 	void saveConfigItems(List<MicrosoftConfigItem> list);
 }
