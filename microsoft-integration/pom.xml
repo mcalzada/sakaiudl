@@ -41,6 +41,7 @@
 		<module>impl</module>
 		<module>admin-tool</module>
 		<module>authorization-tool</module>
+		<module>collaborative-documents</module>
 	</modules>
 
 </project>
