@@ -23,22 +23,25 @@ public interface MicrosoftConfigRepository extends SerializableRepository<Micros
 	public static final String REMOVE_USER_FROM_CHANNEL = PREFIX_SYNCH + "REMOVE_USER_FROM_CHANNEL";
 	public static final String REMOVE_USERS_WHEN_UNPUBLISH = PREFIX_SYNCH + "REMOVE_USERS_WHEN_UNPUBLISH";
 	public static final String CREATE_INVITATION = PREFIX_SYNCH + "CREATE_INVITATION";
-
+	
 	public static final String PREFIX_NEWSITE = "NEWSITE:";
 	public static final String NEW_SITE_TYPE = PREFIX_NEWSITE + "TYPE";
 	public static final String NEW_SITE_PUBLISHED = PREFIX_NEWSITE + "PUBLISHED";
 	public static final String NEW_SITE_PROPERTY = PREFIX_NEWSITE + "PROPERTY";
 	public static final String NEW_SITE_SYNC_DURATION = PREFIX_NEWSITE + "SYNC_DURATION";
-
-	public static final String PREFIX_ONEDRIVE = "ONEDRIVE:";
-	public static final String ONEDRIVE_ENABLED = PREFIX_ONEDRIVE + "ENABLED";
-
+	
 	public static final String PREFIX_JOB = "JOB:";
 	public static final String PREFIX_SITE = "SITE:";
 	public static final String JOB_SITE_TYPE = PREFIX_JOB + PREFIX_SITE + "TYPE";
 	public static final String JOB_SITE_PUBLISHED = PREFIX_JOB + PREFIX_SITE + "PUBLISHED";
 	public static final String JOB_SITE_PROPERTY = PREFIX_JOB + PREFIX_SITE + "PROPERTY";
-
+	
+	public static final String PREFIX_ONEDRIVE = "ONEDRIVE:";
+	public static final String ONEDRIVE_ENABLED = PREFIX_ONEDRIVE + "ENABLED";
+	
+	public static final String PREFIX_COLLABORATIVE_DOCUMENTS = "COLLABDOCS:";
+	public static final String MAX_UPLOAD_SIZE = PREFIX_COLLABORATIVE_DOCUMENTS + "MAX_UPLOAD_SIZE";
+	
 	Optional<MicrosoftConfigItem> getConfigItemByKey(String key);
 	String getConfigItemValueByKey(String key);
 	//------------------------------ CREDENTIALS -------------------------------------------------------
@@ -47,11 +50,11 @@ public interface MicrosoftConfigRepository extends SerializableRepository<Micros
 	//------------------------------- SAKAI - MICROSOFT USER MAPPING ------------------------------------
 	SakaiUserIdentifier getMappedSakaiUserId();
 	MicrosoftUserIdentifier getMappedMicrosoftUserId();
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION ------------------------------------
 	Map<String, MicrosoftConfigItem> getDefaultSynchronizationConfigItems();
 	Map<String, MicrosoftConfigItem> getAllSynchronizationConfigItems();
-
+	
 	Boolean isAllowedCreateTeam();
 	Boolean isAllowedDeleteSynch();
 	Boolean isAllowedDeleteTeam();
@@ -63,11 +66,11 @@ public interface MicrosoftConfigRepository extends SerializableRepository<Micros
 	Boolean isAllowedRemoveUserFromChannel();
 	Boolean isAllowedRemoveUsersWhenUnpublish();
 	Boolean isAllowedCreateInvitation();
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - NEW SITE ------------------------------------
 	SakaiSiteFilter getNewSiteFilter();
 	long getSyncDuration();
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - JOB ------------------------------------
 	SakaiSiteFilter getJobSiteFilter();
 }

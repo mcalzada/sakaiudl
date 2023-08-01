@@ -27,7 +27,7 @@ import org.sakaiproject.microsoft.api.model.MicrosoftConfigItem;
 
 
 public interface MicrosoftConfigurationService {
-
+	
 	//------------------------------ CREDENTIALS -------------------------------------------------------
 	MicrosoftCredentials getCredentials();
 	void saveCredentials(MicrosoftCredentials credentials);
@@ -35,26 +35,29 @@ public interface MicrosoftConfigurationService {
 	//------------------------------- MICROSOFT SYNCHRONIZATION ------------------------------------
 	Map<String, MicrosoftConfigItem> getDefaultSynchronizationConfigItems();
 	Map<String, MicrosoftConfigItem> getAllSynchronizationConfigItems();
-
-		//------------------------------ ONEDRIVE -------------------------------------------------------
+	
+	//------------------------------ ONEDRIVE -------------------------------------------------------
 	boolean isOneDriveEnabled();
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - NEW SITE ------------------------------------
 	SakaiSiteFilter getNewSiteFilter();
 	void saveNewSiteFilter(SakaiSiteFilter filter);
 	long getSyncDuration();
 	void saveSyncDuration(long syncDuration);
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - JOB ------------------------------------
 	SakaiSiteFilter getJobSiteFilter();
 	void saveJobSiteFilter(SakaiSiteFilter filter);
-
+	
 	//------------------------------- SAKAI - MICROSOFT USER MAPPING ------------------------------------
 	SakaiUserIdentifier getMappedSakaiUserId();
 	MicrosoftUserIdentifier getMappedMicrosoftUserId();
 	void saveMappedSakaiUserId(SakaiUserIdentifier identifier);
 	void saveMappedMicrosoftUserId(MicrosoftUserIdentifier identifier);
-
+	
+	//------------------------------ COLLABORATIVE DOCUMENTS -------------------------------------------------------
+	long getMaxUploadSize();
+	
 	//------------------------------------------- COMMON ------------------------------------------------
 	String getConfigItemValueByKey(String key);
 	void saveOrUpdateConfigItem(MicrosoftConfigItem item);
