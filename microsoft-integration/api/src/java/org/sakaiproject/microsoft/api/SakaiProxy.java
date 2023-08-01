@@ -29,11 +29,12 @@ import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.user.api.User;
 
 public interface SakaiProxy {
-
+	
 	// ------------------------------------------ SECURITY ----------------------------------------------------
 	boolean isAdmin();
 	boolean canUpdateSite(String siteReference, String userId);
 	boolean canCurrentUserAccessSite(String siteId);
+	boolean checkPermissions(String userId, String perm, String ref);
 	
 	// --------------------------------------------- SESSION -----------------------------------------------------
 	Session getCurrentSession();
@@ -44,29 +45,31 @@ public interface SakaiProxy {
 	User getUser(String userId);
 	String getMemberKeyValue(User user, SakaiUserIdentifier key);
 	void setUserProperty(String userId, String value);
-
+	
 	// ------------------------------------------ LOCALE ----------------------------------------------------
 	Locale getLocaleForCurrentUser();
 	ZoneId getUserTimeZoneId();
-
+	
 	// ------------------------------------------ SITES ----------------------------------------------------
+	String getCurrentSiteId();
+	boolean isMyWorkspace();
 	List<Site> getSakaiSites();
 	List<Site> getSakaiSites(SakaiSiteFilter filter);
 	Site getSite(String siteId);
 
 	SakaiMembersCollection getSiteMembers(String siteId, SakaiUserIdentifier key);
-
+	
 	// ------------------------------------------ GROUPS ----------------------------------------------------
 	SakaiMembersCollection getGroupMembers(Group group, SakaiUserIdentifier key);
-
+	
 	// ------------------------------------------ CALENDAR ----------------------------------------------------
 	boolean existsCalendar(String reference);
 	String saveCalendar(SakaiCalendarEvent calendarEvent);
 	boolean removeFromCalendar(String siteId, String calendarEventId) throws Exception;
-
+	
 	// --------------------------------------------- EMAIL -----------------------------------------------------
 	void sendMail(String from, List<String> to, String subject, String content);
-
+	
 	// --------------------------------------- SERVER CONFIG & PROPERTIES --------------------------------------
 	String getString(String name);
 	String getString(String name, String dflt);

@@ -66,6 +66,8 @@ public class ConfigController {
 
 		model.addAttribute("onedriveEnabled", microsoftConfigurationService.isOneDriveEnabled());
 
+		model.addAttribute("maxUploadSize", microsoftConfigurationService.getMaxUploadSize());
+
 		model.addAttribute("mapped_sakai_user_id", microsoftConfigurationService.getMappedSakaiUserId());
 		model.addAttribute("mapped_microsoft_user_id", microsoftConfigurationService.getMappedMicrosoftUserId());
 
@@ -79,6 +81,8 @@ public class ConfigController {
 		microsoftConfigurationService.saveConfigItems(new ArrayList<MicrosoftConfigItem>(default_items.values()));
 
 		microsoftConfigurationService.saveOrUpdateConfigItem(MicrosoftConfigItem.builder().key(MicrosoftConfigRepository.ONEDRIVE_ENABLED).value(Boolean.toString(payload.isOnedriveEnabled())).build());
+
+		microsoftConfigurationService.saveOrUpdateConfigItem(MicrosoftConfigItem.builder().key(MicrosoftConfigRepository.MAX_UPLOAD_SIZE).value(Long.toString(payload.getMaxUploadSize())).build());
 
 		microsoftConfigurationService.saveMappedSakaiUserId(payload.getMapped_sakai_user_id());
 		microsoftConfigurationService.saveMappedMicrosoftUserId(payload.getMapped_microsoft_user_id());

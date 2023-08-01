@@ -44,11 +44,12 @@ import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
 import org.sakaiproject.site.api.SiteService.SelectionType;
 import org.sakaiproject.site.api.SiteService.SortType;
-import org.sakaiproject.time.api.UserTimeService;
 import org.sakaiproject.time.api.TimeRange;
 import org.sakaiproject.time.api.TimeService;
+import org.sakaiproject.time.api.UserTimeService;
 import org.sakaiproject.tool.api.Session;
 import org.sakaiproject.tool.api.SessionManager;
+import org.sakaiproject.tool.api.ToolManager;
 import org.sakaiproject.user.api.PreferencesService;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
@@ -65,41 +66,44 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Transactional
 public class SakaiProxyImpl implements SakaiProxy {
-
+	
 	@Autowired
 	private SecurityService securityService;
-
+	
 	@Autowired
 	private SiteService siteService;
-
+	
+	@Autowired
+	private ToolManager toolManager;
+	
 	@Autowired
 	private UserDirectoryService userDirectoryService;
-
+	
 	@Autowired
 	private SessionManager sessionManager;
-
+	
 	@Autowired
 	private PreferencesService preferencesService;
-
+	
 	@Autowired
 	private CalendarService calendarService;
-
+	
 	@Autowired
 	private TimeService timeService;
-
-	@Autowired
-	private EmailService emailService;
-
-	@Autowired
-	private ServerConfigurationService serverConfigurationService;
-
+	
 	@Setter
 	private UserTimeService userTimeService;
+	
+	@Autowired
+	private EmailService emailService;
+	
+	@Autowired
+	private ServerConfigurationService serverConfigurationService;
 
 	public void init() {
 		log.info("Initializing Sakai Proxy");
 	}
-
+	
 	// ------------------------------------------ SECURITY ----------------------------------------------------
 	@Override
 	public boolean isAdmin() {
@@ -110,30 +114,34 @@ public class SakaiProxyImpl implements SakaiProxy {
 	public boolean canUpdateSite(String siteReference, String userId) {
 		return (securityService.unlock(userId, SiteService.SECURE_UPDATE_SITE, siteReference) || securityService.isSuperUser(userId));
 	}
-
+	
 	@Override
 	public boolean canCurrentUserAccessSite(String siteId) {
 		return (siteService.isCurrentUserMemberOfSite(siteId) || isAdmin());
 	}
-
+	
+	public boolean checkPermissions(String userId, String perm, String ref) {
+		return (securityService.unlock(userId, perm, ref) || securityService.isSuperUser(userId));
+	}
+	
 	// --------------------------------------------- SESSION -----------------------------------------------------
 	@Override
 	public Session getCurrentSession() {
 		return sessionManager.getCurrentSession();
 	}
-
+	
 	// ------------------------------------------ USERS ----------------------------------------------------
-		@Override
+	@Override
 	public String getCurrentUserId() {
 		return sessionManager.getCurrentSessionUserId();
 	}
-
+	
 	@Override
 	public User getCurrentUser() {
 		String userId = getCurrentUserId();
 		return getUser(userId);
 	}
-
+	
 	@Override
 	public User getUser(String userId) {
 		try {
@@ -143,7 +151,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public String getMemberKeyValue(User user, SakaiUserIdentifier key) {
 		String ret = null;
@@ -154,15 +162,15 @@ public class SakaiProxyImpl implements SakaiProxy {
 				case USER_PROPERTY:
 					ret = (String)user.getProperties().get(SakaiUserIdentifier.USER_PROPERTY_KEY);
 					break;
-
+		
 				case USER_EID:
 					ret = user.getEid();
 					break;
-
+	
 				case EMAIL:
 					ret = (user.getEmail() != null) ? user.getEmail().toLowerCase() : null;
 					break;
-
+					
 				default:
 					ret = user.getEmail();
 			}
@@ -171,38 +179,49 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return ret;
 	}
-
+	
 	@Override
 	public void setUserProperty(String userId, String value) {
 		try {
 			UserEdit edit = userDirectoryService.editUser(userId);
-
+			
 			ResourcePropertiesEdit properties = edit.getPropertiesEdit();
 			properties.removeProperty(SakaiUserIdentifier.USER_PROPERTY_KEY);
 			properties.addProperty(SakaiUserIdentifier.USER_PROPERTY_KEY, value);
-
+		
 			userDirectoryService.commitEdit(edit);
 		} catch(Exception e) {
 			log.error("Could not set user property: userId={}", userId);
 		}
 	}
-
+	
 	// ------------------------------------------ LOCALE ----------------------------------------------------
 	public Locale getLocaleForCurrentUser() {
 		String userId = sessionManager.getCurrentSessionUserId();
 		return StringUtils.isNotBlank(userId) ? preferencesService.getLocale(userId) : Locale.getDefault();
 	}
-
+	
 	public ZoneId getUserTimeZoneId() {
 		return userTimeService.getLocalTimeZone().toZoneId();
 	}
-
+	
+	
 	// ------------------------------------------ SITES ----------------------------------------------------
+	@Override
+	public String getCurrentSiteId() {
+		return toolManager.getCurrentPlacement().getContext();
+	}
+	
+	@Override
+	public boolean isMyWorkspace() {
+		return siteService.isUserSite(getCurrentSiteId());
+	}
+	
 	@Override
 	public List<Site> getSakaiSites(){
 		return getSakaiSites(new SakaiSiteFilter());
 	}
-
+	
 	@Override
 	public List<Site> getSakaiSites(SakaiSiteFilter filter){
 		if(filter != null) {
@@ -214,7 +233,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return siteService.getSites(SelectionType.ANY, null, null, null, SortType.TITLE_ASC, null);
 	}
-
+	
 	@Override
 	public Site getSite(String siteId){
 		try {
@@ -224,7 +243,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public SakaiMembersCollection getSiteMembers(String siteId, SakaiUserIdentifier key) {
 
@@ -243,7 +262,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 							identifier = "EMPTY_"+count;
 							count++;
 						}
-
+						
 						if(canUpdateSite(site.getReference(), u.getId())) {
 							log.debug(">>USER+: ({}) --> displayName={}, userId={}, id={}", identifier, u.getDisplayName(), u.getId());
 							ret.addOwner(identifier, u);
@@ -261,8 +280,8 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return ret;
 	}
-
-
+	
+	
 	// ------------------------------------------ GROUPS ----------------------------------------------------
 	@Override
 	public SakaiMembersCollection getGroupMembers(Group group, SakaiUserIdentifier key) {
@@ -289,8 +308,8 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return ret;
 	}
-
-		// ------------------------------------------ CALENDAR ----------------------------------------------------
+	
+	// ------------------------------------------ CALENDAR ----------------------------------------------------
 	@Override
 	public boolean existsCalendar(String reference) {
 		try {
@@ -302,7 +321,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return false;
 	}
-
+	
 	@Override
 	public String saveCalendar(SakaiCalendarEvent calendarEvent) {
 		CalendarEdit calendar = null;
@@ -323,7 +342,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 			// Control group access
 			cedit.clearGroupAccess();
 			if (!calendarEvent.getGroups().isEmpty()) {
-				cedit.setGroupAccess(calendarEvent.getGroups(), false);
+				cedit.setGroupAccess(calendarEvent.getGroups(), false);    
 			}
 			calendar.commitEvent(cedit);
 			calendarService.commitCalendar(calendar);
@@ -334,7 +353,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public boolean removeFromCalendar(String siteId, String calendarEventId) throws Exception {
 		try {
@@ -351,7 +370,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 		}
 		return false;
 	}
-
+	
 	// --------------------------------------------- EMAIL -----------------------------------------------------
 	@Override
 	public void sendMail(String from, List<String> to, String subject, String content) {
@@ -362,7 +381,7 @@ public class SakaiProxyImpl implements SakaiProxy {
 			log.error("Given email is not a valid email address: {}", from);
 			return;
 		}
-
+		
 		InternetAddress[] ia_to = to.stream().map(s -> {
 			try {
 				return new InternetAddress(s);
@@ -374,23 +393,23 @@ public class SakaiProxyImpl implements SakaiProxy {
 		  .toArray(InternetAddress[]::new);
 		emailService.sendMail(ia_from, ia_to, subject, content, null, null, null, null);
 	}
-
+	
 	// --------------------------------------- SERVER CONFIG & PROPERTIES --------------------------------------
 	@Override
 	public String getString(String name) {
 		return serverConfigurationService.getString(name);
 	}
-
+	
 	@Override
 	public String getString(String name, String dflt) {
 		return serverConfigurationService.getString(name, dflt);
 	}
-
+	
 	@Override
 	public String getServerName() {
 		return serverConfigurationService.getServerName();
 	}
-
+	
 	@Override
 	public String getServerUrl() {
 		return serverConfigurationService.getServerUrl();

@@ -18,6 +18,9 @@ package org.sakaiproject.microsoft.impl;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -36,15 +39,18 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.sakaiproject.authz.api.FunctionManager;
 import org.sakaiproject.messaging.api.MicrosoftMessage;
 import org.sakaiproject.messaging.api.MicrosoftMessage.MicrosoftMessageBuilder;
 import org.sakaiproject.messaging.api.MicrosoftMessagingService;
 import org.sakaiproject.microsoft.api.MicrosoftAuthorizationService;
 import org.sakaiproject.microsoft.api.MicrosoftCommonService;
+import org.sakaiproject.microsoft.api.SakaiProxy;
 import org.sakaiproject.microsoft.api.data.MeetingRecordingData;
 import org.sakaiproject.microsoft.api.data.MicrosoftChannel;
 import org.sakaiproject.microsoft.api.data.MicrosoftCredentials;
 import org.sakaiproject.microsoft.api.data.MicrosoftDriveItem;
+import org.sakaiproject.microsoft.api.data.MicrosoftDriveItemFilter;
 import org.sakaiproject.microsoft.api.data.MicrosoftMembersCollection;
 import org.sakaiproject.microsoft.api.data.MicrosoftTeam;
 import org.sakaiproject.microsoft.api.data.MicrosoftUser;
@@ -66,6 +72,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
+
+import com.microsoft.graph.tasks.LargeFileUploadTask;
+import com.microsoft.graph.tasks.LargeFileUploadResult;
 import com.microsoft.graph.models.AadUserConversationMember;
 import com.microsoft.graph.models.CallRecordingEventMessageDetail;
 import com.microsoft.graph.models.CallRecordingStatus;
@@ -75,8 +84,12 @@ import com.microsoft.graph.models.ChatMessage;
 import com.microsoft.graph.models.ConversationMember;
 import com.microsoft.graph.models.DirectoryObject;
 import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.models.DriveItemCreateLinkParameterSet;
+import com.microsoft.graph.models.DriveItemCreateUploadSessionParameterSet;
 import com.microsoft.graph.models.DriveItemInviteParameterSet;
+import com.microsoft.graph.models.DriveItemUploadableProperties;
 import com.microsoft.graph.models.DriveRecipient;
+import com.microsoft.graph.models.Folder;
 import com.microsoft.graph.models.Group;
 import com.microsoft.graph.models.Identity;
 import com.microsoft.graph.models.IdentitySet;
@@ -88,7 +101,11 @@ import com.microsoft.graph.models.MeetingParticipants;
 import com.microsoft.graph.models.OnlineMeeting;
 import com.microsoft.graph.models.OnlineMeetingPresenters;
 import com.microsoft.graph.models.OnlineMeetingRole;
+import com.microsoft.graph.models.Permission;
+import com.microsoft.graph.models.PermissionGrantParameterSet;
 import com.microsoft.graph.models.Team;
+import com.microsoft.graph.models.ThumbnailSet;
+import com.microsoft.graph.models.UploadSession;
 import com.microsoft.graph.models.User;
 import com.microsoft.graph.options.HeaderOption;
 import com.microsoft.graph.options.Option;
@@ -123,20 +140,26 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 	@Setter
 	MicrosoftConfigRepository microsoftConfigRepository;
-
+	
 	@Setter
 	MicrosoftLoggingRepository microsoftLoggingRepository;
-
+	
 	@Autowired
 	MicrosoftMessagingService microsoftMessagingService;
-
+	
 	@Autowired
 	MicrosoftAuthorizationService microsoftAuthorizationService;
-
+	
+	@Autowired
+	private SakaiProxy sakaiProxy;
+	
+	@Setter
+	private FunctionManager functionManager;
+	
 	@Setter
 	private CacheManager cacheManager;
 	private Cache cache = null;
-
+	
 	private static final String CACHE_NAME = MicrosoftCommonServiceImpl.class.getName() + "_cache";
 	private static final String CACHE_TEAMS = "key::teams";
 	private static final String CACHE_CHANNELS = "key::channels::";
@@ -144,16 +167,27 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	private static final String CACHE_DRIVE_ITEMS = "key::driveitems::";
 	private static final String CACHE_DRIVE_ITEMS_USER = "key::driveitems-user::";
 	private static final String CACHE_DRIVE_ITEMS_GROUP = "key::driveitems-group::";
-
+	
 	private static final String PERMISSION_READ = "read";
 	private static final String PERMISSION_WRITE = "write";
-
+	private static final String LINK_TYPE_EDIT = "edit";
+	private static final String LINK_TYPE_VIEW = "view";
+	private static final String LINK_SCOPE_USERS = "users";
+	
 	private String lock = "LOCK";
 
 	public void init() {
 		log.info("Initializing MicrosoftCommonService Service");
+		
+		// register functions
+		functionManager.registerFunction(PERM_VIEW_ALL_CHANNELS, true);
+		functionManager.registerFunction(PERM_CREATE_FILES, true);
+		functionManager.registerFunction(PERM_CREATE_FOLDERS, true);
+		functionManager.registerFunction(PERM_DELETE_FILES, true);
+		functionManager.registerFunction(PERM_DELETE_FOLDERS, true);
+		functionManager.registerFunction(PERM_UPLOAD_FILES, true);
 	}
-
+	
 	private Cache getCache() {
 		if(cache == null) {
 			cache = cacheManager.getCache(CACHE_NAME);
@@ -191,32 +225,32 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return this.graphClient;
 	}
-
+	
 	@Override
 	public void checkConnection() throws MicrosoftCredentialsException {
 		getGraphClient();
 	}
-
+	
 	@Override
 	public void resetCache() {
 		getCache().invalidate();
 	}
-
+	
 	@Override
 	public void resetTeamsCache() {
 		getCache().evictIfPresent(CACHE_TEAMS);
 	}
-
+	
 	@Override
 	public void resetDriveItemsCache() {
 		getCache().evictIfPresent(CACHE_DRIVE_ITEMS);
 	}
-
+	
 	@Override
 	public void resetUserDriveItemsCache(String userId) {
 		getCache().evictIfPresent(CACHE_DRIVE_ITEMS_USER + userId);
 	}
-
+	
 	@Override
 	public void resetGroupDriveItemsCache(String groupId) {
 		getCache().evictIfPresent(CACHE_DRIVE_ITEMS_GROUP + groupId);
@@ -252,12 +286,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 		return userList;
 	}
-
+	
 	@Override
 	public boolean checkUser(String identifier, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException {
 		return getUser(identifier, key) != null;
 	}
-
+	
 	@Override
 	public MicrosoftUser getUser(String identifier, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException {
 		switch(key) {
@@ -271,7 +305,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return null;
 		}
 	}
-
+	
 	@Override
 	public MicrosoftUser getUserByEmail(String email) throws MicrosoftCredentialsException {
 		try {
@@ -296,7 +330,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public MicrosoftUser getUserById(String id) throws MicrosoftCredentialsException {
 		try {
@@ -318,13 +352,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		return null;
 
 	}
-
+	
 	// ---------------------------------------- INVITATIONS ------------------------------------------------
 	@Override
 	public MicrosoftUser createInvitation(String email) throws MicrosoftGenericException {
 		return createInvitation(email, "https://teams.microsoft.com");
 	}
-
+	
 	@Override
 	public MicrosoftUser createInvitation(String email, String redirectURL) throws MicrosoftGenericException {
 		try {
@@ -334,7 +368,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					.email(email)
 					.guest(true)
 					.build(); }
-
+			
 			Invitation invitation = new Invitation();
 			invitation.invitedUserEmailAddress = email;
 			invitation.inviteRedirectUrl = redirectURL;
@@ -344,7 +378,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					.post(invitation);
 
 			log.debug("INVITATION RESPONSE: id={}, userId={}, email={}, status={}", response.id, response.invitedUser.id, response.invitedUserEmailAddress, response.status);
-
+			
 			return MicrosoftUser.builder()
 					.id(response.invitedUser.id)
 					.email(response.invitedUserEmailAddress)
@@ -358,7 +392,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 	}
 
-
+	
 	// ---------------------------------------- TEAMS / GROUPS ------------------------------------------------
 	@Override
 	public MicrosoftTeam getGroup(String id) throws MicrosoftCredentialsException {
@@ -380,12 +414,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public MicrosoftTeam getTeam(String id) throws MicrosoftCredentialsException {
 		return getTeam(id, false);
 	}
-
+	
 	@Override
 	public MicrosoftTeam getTeam(String id, boolean force) throws MicrosoftCredentialsException {
 		try {
@@ -411,13 +445,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					.name(team.displayName)
 					.description(team.description)
 					.build();
-
+			
 			//update cache
 			Cache.ValueWrapper cachedValue = getCache().get(CACHE_TEAMS);
 			if(cachedValue != null) {
 				Map<String, MicrosoftTeam> teamsMap = (Map<String, MicrosoftTeam>)cachedValue.get();
 				teamsMap.put(id, mt);
-
+				
 				getCache().put(CACHE_TEAMS, teamsMap);
 			}
 			return mt;
@@ -428,12 +462,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public Map<String, MicrosoftTeam> getTeams() throws MicrosoftCredentialsException {
 		return getTeams(false);
 	}
-
+	
 	@Override
 	public Map<String, MicrosoftTeam> getTeams(boolean force) throws MicrosoftCredentialsException {
 		//get from cache (if not force)
@@ -467,13 +501,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			if (builder == null) break;
 			page = builder.buildRequest().get();
 		}
-
+		
 		//store in cache
 		getCache().put(CACHE_TEAMS, teamsMap);
 
 		return teamsMap;
 	}
-
+	
 	public String createTeam_old(String name, String ownerEmail) throws MicrosoftCredentialsException {
 		String groupId = createGroup(name, ownerEmail);
 		if(groupId != null) {
@@ -488,35 +522,35 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.description(name)
 						.fullyCreated(false) //set as partially created
 						.build());
-
+				
 				getCache().put(CACHE_TEAMS, teamsMap);
 			}
-
+	
 			createTeamFromGroupAsync(groupId);
 		}
 
 		return groupId;
 	}
-
+	
 	@Override
 	public String createTeam(String name, String ownerEmail) throws MicrosoftCredentialsException {
 		try {
 			LinkedList<String> rolesList = new LinkedList<String>();
 			rolesList.add("owner");
-
+			
 			User userOwner = getGraphClient().users(ownerEmail).buildRequest().get();
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = rolesList;
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userOwner.id + "')"));
-
+			
 			LinkedList<ConversationMember> membersList = new LinkedList<ConversationMember>();
 			membersList.add(conversationMember);
-
+			
 			ConversationMemberCollectionResponse conversationMemberCollectionResponse = new ConversationMemberCollectionResponse();
 			conversationMemberCollectionResponse.value = membersList;
 			ConversationMemberCollectionPage conversationMemberCollectionPage = new ConversationMemberCollectionPage(conversationMemberCollectionResponse, null);
-
+			
 			Team team = new Team();
 			team.displayName = name;
 			team.description = name;
@@ -526,7 +560,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			Team ret = getGraphClient().teams()
 				.buildRequest()
 				.post(team);
-
+			
 			JsonElement adm = ret.additionalDataManager().get("graphResponseHeaders");
 			if(adm != null) {
 				String contentLocation = adm.getAsJsonObject().get("content-location").getAsString();
@@ -544,10 +578,10 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 								.name(name)
 								.description(name)
 								.build());
-
+						
 						getCache().put(CACHE_TEAMS, teamsMap);
 					}
-
+					
 					return teamId;
 				}
 			}
@@ -558,7 +592,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public String createGroup(String name, String ownerEmail) throws MicrosoftCredentialsException {
 		try {
@@ -571,7 +605,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			group.mailEnabled = true;
 			group.mailNickname = RandomStringUtils.randomAlphanumeric(64);
 			group.securityEnabled = false;
-
+			
 			User userOwner = getGraphClient().users(ownerEmail).buildRequest().get();
 			List<String> ids = Arrays.asList("https://graph.microsoft.com/v1.0/users('" + userOwner.id + "')");
 			group.additionalDataManager().put("owners@odata.bind", new Gson().toJsonTree(ids));
@@ -588,7 +622,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public void createTeamFromGroup(String groupId) throws MicrosoftCredentialsException {
 		Team team = new Team();
@@ -599,42 +633,42 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				.buildRequest()
 				.post(team);
 	}
-
+	
 	@Override
 	public void createTeamFromGroupAsync(String groupId) throws MicrosoftCredentialsException {
 		ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-
+		
 		AtomicInteger counter = new AtomicInteger(1);
 		final int MAX_RETRY = 5;
-
+		
 		MicrosoftMessageBuilder builder = MicrosoftMessage.builder();
 		builder.action(MicrosoftMessage.Action.CREATE)
 			.type(MicrosoftMessage.Type.TEAM)
 			.reference(groupId);
-
+		
 		Runnable task = new Runnable() {
 			@Override
 			public void run () {
 				synchronized(lock){
 					try {
 						log.debug("Attempt number: {}", counter.get());
-
+						
 						//check if Team does not exist (always ask microsoft, do not use the cache)
 						if(getTeam(groupId, true) == null) {
 							//create it
 							createTeamFromGroup(groupId);
 						}
-
+						
 						//send message to (ignite) MicrosoftMessagingService (wait 30 sec before sending the message)
 						Thread.sleep(30000);
 						microsoftMessagingService.send(MicrosoftMessage.Topic.TEAM_CREATION, builder.status(1).build());
-
+						
 						executor.shutdown();
 					} catch(MicrosoftCredentialsException e) {
 						log.error("Error creating Team (credentials): " + e.getMessage());
 						//send message to (ignite) MicrosoftMessagingService
 						microsoftMessagingService.send(MicrosoftMessage.Topic.TEAM_CREATION, builder.status(0).build());
-
+						
 						executor.shutdown();
 					} catch (Exception e) {
 						if (counter.get() < MAX_RETRY) {
@@ -646,7 +680,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 							log.error("Error creating Team: " + e.getMessage());
 							//send message to (ignite) MicrosoftMessagingService
 							microsoftMessagingService.send(MicrosoftMessage.Topic.TEAM_CREATION, builder.status(0).build());
-
+							
 							executor.shutdown();
 						}
 					}
@@ -656,7 +690,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		//wait 30 sec before first try
 		executor.schedule(task, 30, TimeUnit.SECONDS);
 	}
-
+	
 	@Override
 	public boolean deleteTeam(String teamId) throws MicrosoftCredentialsException {
 		try {
@@ -677,7 +711,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		MicrosoftMembersCollection ret = new MicrosoftMembersCollection();
 		try {
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
-
+			
 			ConversationMemberCollectionPage page = getGraphClient()
 					.teams(id)
 					.members()
@@ -686,12 +720,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			while (page != null) {
 				for(ConversationMember m : page.getCurrentPage()) {
 					AadUserConversationMember member = (AadUserConversationMember)m;
-
+	
 					String identifier = getMemberKeyValue(member, key);
 					//avoid insert admin user
 					if(StringUtils.isNotBlank(identifier) && !credentials.getEmail().equalsIgnoreCase(member.email)) {
 						log.debug(">>MEMBER: ({}) --> displayName={}, roles={}, userId={}, id={}", identifier, member.displayName, member.roles.stream().collect(Collectors.joining(", ")), member.userId, member.id);
-
+	
 						MicrosoftUser mu = MicrosoftUser.builder()
 								.id(member.userId)
 								.name(member.displayName)
@@ -700,7 +734,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 								.owner(member.roles != null && member.roles.contains(MicrosoftUser.OWNER))
 								.guest(member.roles != null && member.roles.contains(MicrosoftUser.GUEST))
 								.build();
-
+						
 						if(member.roles != null && member.roles.contains(MicrosoftUser.GUEST)) {
 							ret.addGuest(identifier, mu);
 						} else if(member.roles != null && member.roles.contains(MicrosoftUser.OWNER)) {
@@ -726,7 +760,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	@Override
 	public MicrosoftUser checkUserInTeam(String identifier, String teamId, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException {
 		MicrosoftUser ret = null;
-
+		
 		String filter = null;
 		switch(key) {
 			case USER_ID:
@@ -747,7 +781,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				while (page != null) {
 					for(ConversationMember m : page.getCurrentPage()) {
 						AadUserConversationMember member = (AadUserConversationMember)m;
-
+					
 						if(ret == null) {
 							ret = MicrosoftUser.builder()
 									.id(member.userId)
@@ -759,7 +793,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 									.build();
 						}
 					}
-
+					
 					ConversationMemberCollectionRequestBuilder builder = page.getNextPage();
 					if (builder == null) break;
 					page = builder.buildRequest().get();
@@ -772,13 +806,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	@Override
 	public boolean addMemberToGroup(String userId, String groupId) throws MicrosoftCredentialsException {
 		try {
 			DirectoryObject directoryObject = new DirectoryObject();
 			directoryObject.id = userId;
-
+			
 			getGraphClient().groups(groupId).members().references()
 					.buildRequest()
 					.post(directoryObject);
@@ -790,13 +824,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean addOwnerToGroup(String userId, String groupId) throws MicrosoftCredentialsException {
 		try {
 			DirectoryObject directoryObject = new DirectoryObject();
 			directoryObject.id = userId;
-
+			
 			getGraphClient().groups(groupId).owners().references()
 					.buildRequest()
 					.post(directoryObject);
@@ -808,16 +842,16 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean addMemberToTeam(String userId, String teamId) throws MicrosoftCredentialsException {
 		try {
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = new LinkedList<String>();
-
+			
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userId + "')"));
-
+			
 			getGraphClient().teams(teamId).members().buildRequest().post(conversationMember);
 		}catch(MicrosoftCredentialsException e) {
 			throw e;
@@ -827,19 +861,19 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean addOwnerToTeam(String userId, String teamId) throws MicrosoftCredentialsException {
 		try {
 			LinkedList<String> rolesList = new LinkedList<String>();
 			rolesList.add(MicrosoftUser.OWNER);
-
+			
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = rolesList;
-
+			
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userId + "')"));
-
+			
 			getGraphClient().teams(teamId).members().buildRequest().post(conversationMember);
 		}catch(MicrosoftCredentialsException e) {
 			throw e;
@@ -849,7 +883,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean removeUserFromGroup(String userId, String groupId) throws MicrosoftCredentialsException {
 		try {
@@ -864,7 +898,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean removeMemberFromTeam(String memberId, String teamId) throws MicrosoftCredentialsException {
 		try {
@@ -879,13 +913,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean removeAllMembersFromTeam(String teamId) throws MicrosoftCredentialsException {
 		try {
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
 			String adminEmail = credentials.getEmail();
-
+			
 			//get all members in team
 			Map<String, String> teamMemberMap = new HashMap<>();
 			ConversationMemberCollectionPage page = getGraphClient()
@@ -896,11 +930,11 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			while (page != null) {
 				for(ConversationMember m : page.getCurrentPage()) {
 					AadUserConversationMember member = (AadUserConversationMember)m;
-
+	
 					//avoid insert admin user
 					if(!adminEmail.equalsIgnoreCase(member.email)) {
 						log.debug(">>TEAM MEMBER: displayName={}, email={}, roles={}, userId={}, id={}", member.displayName, member.email, member.roles.stream().collect(Collectors.joining(", ")), member.userId, member.id);
-
+	
 						teamMemberMap.put(member.userId, member.id);
 					}
 				}
@@ -908,7 +942,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (builder == null) break;
 				page = builder.buildRequest().get();
 			}
-
+			
 			//get all members in group (sometimes, specially with guest users, there are members in group that have not been moved to the team)
 			Set<String> groupMemberIds = new HashSet<>();
 			DirectoryObjectCollectionWithReferencesPage page2 = graphClient.groups(teamId)
@@ -931,16 +965,16 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (builder == null) break;
 				page2 = builder.buildRequest().get();
 			}
-
+			
 			//we only want group users that are not team members
 			groupMemberIds.removeAll(teamMemberMap.keySet());
-
+			
 			//remove all team members
 			boolean ret = true;
 			for(String memberId : teamMemberMap.values()) {
 				ret = ret && removeMemberFromTeam(memberId, teamId);
 			}
-
+			
 			//remove all group users
 			for(String userId : groupMemberIds) {
 				ret = ret && removeUserFromGroup(userId, teamId);
@@ -953,13 +987,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			return false;
 		}
 	}
-
+	
 	// ------------------------------------------ CHANNELS ----------------------------------------------------
 	@Override
 	public MicrosoftChannel getChannel(String teamId, String channelId) throws MicrosoftCredentialsException {
 		return getChannel(teamId, channelId, false);
 	}
-
+	
 	@Override
 	public MicrosoftChannel getChannel(String teamId, String channelId, boolean force) throws MicrosoftCredentialsException {
 		try {
@@ -984,13 +1018,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					.name(channel.displayName)
 					.description(channel.description)
 					.build();
-
+			
 			//update cache (if map exists)
 			Cache.ValueWrapper cachedValue = getCache().get(CACHE_CHANNELS+teamId);
 			if(cachedValue != null) {
 				Map<String, MicrosoftChannel> channelsMap = (Map<String, MicrosoftChannel>)cachedValue.get();
 				channelsMap.put(channelId, mc);
-
+				
 				getCache().put(CACHE_CHANNELS+teamId, channelsMap);
 			}
 			return mc;
@@ -1001,24 +1035,24 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public Map<String, MicrosoftChannel> getTeamPrivateChannels(String teamId) throws MicrosoftCredentialsException {
 		return getTeamPrivateChannels(teamId, false);
 	}
-
+	
 	@Override
 	public Map<String, MicrosoftChannel> getTeamPrivateChannels(String teamId, boolean force) throws MicrosoftCredentialsException {
-			if(!force) {
+		if(!force) {
 			//get from cache
 			Cache.ValueWrapper cachedValue = getCache().get(CACHE_CHANNELS+teamId);
 			if(cachedValue != null) {
 				return (Map<String, MicrosoftChannel>)cachedValue.get();
 			}
 		}
-
+		
 		Map<String, MicrosoftChannel> channelsMap = new HashMap<>();
-
+		
 		try {
 			ChannelCollectionPage page = getGraphClient().teams(teamId)
 					.channels()
@@ -1038,7 +1072,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (builder == null) break;
 				page = builder.buildRequest().get();
 			}
-
+			
 			//store in cache
 			getCache().put(CACHE_CHANNELS+teamId, channelsMap);
 		}catch(MicrosoftCredentialsException e) {
@@ -1048,7 +1082,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return channelsMap;
 	}
-
+	
 	@Override
 	public String createChannel(String teamId, String name, String ownerEmail) throws MicrosoftCredentialsException {
 		try {
@@ -1056,25 +1090,25 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			channel.membershipType = ChannelMembershipType.PRIVATE;
 			channel.displayName = formatMicrosoftString(name);
 			channel.description = name;
-
+			
 			User userOwner = getGraphClient().users(ownerEmail).buildRequest().get();
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = Arrays.asList(MicrosoftUser.OWNER);
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userOwner.id + "')"));
-
+			
 			LinkedList<ConversationMember> membersList = new LinkedList<ConversationMember>();
 			membersList.add(conversationMember);
-
+			
 			ConversationMemberCollectionResponse conversationMemberCollectionResponse = new ConversationMemberCollectionResponse();
 			conversationMemberCollectionResponse.value = membersList;
 			ConversationMemberCollectionPage conversationMemberCollectionPage = new ConversationMemberCollectionPage(conversationMemberCollectionResponse, null);
 			channel.members = conversationMemberCollectionPage;
-
+	
 			Channel newChannel = getGraphClient().teams(teamId).channels()
 				.buildRequest()
 				.post(channel);
-
+			
 			//add new channel to cache
 			Cache.ValueWrapper cachedValue = getCache().get(CACHE_CHANNELS+teamId);
 			if(cachedValue != null) {
@@ -1086,7 +1120,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.build());
 				getCache().put(CACHE_CHANNELS+teamId, channelsMap);
 			}
-
+	
 			return newChannel.id;
 		}catch(MicrosoftCredentialsException e) {
 			throw e;
@@ -1095,7 +1129,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return null;
 	}
-
+	
 	@Override
 	public boolean deleteChannel(String teamId, String channelId) throws MicrosoftCredentialsException {
 		try {
@@ -1110,13 +1144,13 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return false;
 	}
-
+	
 	@Override
 	public MicrosoftMembersCollection getChannelMembers(String teamId, String channelId, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException {
 		MicrosoftMembersCollection ret = new MicrosoftMembersCollection();      
 		try {
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
-
+			
 			ConversationMemberCollectionPage page = getGraphClient()
 					.teams(teamId)
 					.channels(channelId)
@@ -1127,12 +1161,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			while (page != null) {
 				for(ConversationMember m : page.getCurrentPage()) {
 					AadUserConversationMember member = (AadUserConversationMember)m;
-
+	
 					String identifier = getMemberKeyValue(member, key);
 					//avoid insert admin user
 					if(StringUtils.isNotBlank(identifier) && !credentials.getEmail().equalsIgnoreCase(member.email)) {
 						log.debug(">>MEMBER: ({}) --> displayName={}, roles={}, userId={}, id={}", identifier, member.displayName, member.roles.stream().collect(Collectors.joining(", ")), member.userId, member.id);
-
+	
 						MicrosoftUser mu = MicrosoftUser.builder()
 								.id(member.userId)
 								.name(member.displayName)
@@ -1163,11 +1197,11 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 		return ret;
 	}
-
+	
 	@Override
 	public MicrosoftUser checkUserInChannel(String identifier, String teamId, String channelId, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException {
 		MicrosoftUser ret = null;
-
+		
 		String filter = null;
 		switch(key) {
 			case USER_ID:
@@ -1188,7 +1222,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				while (page != null) {
 					for(ConversationMember m : page.getCurrentPage()) {
 						AadUserConversationMember member = (AadUserConversationMember)m;
-
+					
 						if(ret == null) {
 							ret = MicrosoftUser.builder()
 									.id(member.userId)
@@ -1200,7 +1234,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 									.build();
 						}
 					}
-
+					
 					ConversationMemberCollectionRequestBuilder builder = page.getNextPage();
 					if (builder == null) break;
 					page = builder.buildRequest().get();
@@ -1221,9 +1255,9 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = new LinkedList<String>();
-
+			
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userId + "')"));
-
+			
 			getGraphClient().teams(teamId).channels(channelId).members().buildRequest().post(conversationMember);
 		}catch(MicrosoftCredentialsException e) {
 			throw e;
@@ -1233,19 +1267,19 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean addOwnerToChannel(String userId, String teamId, String channelId) throws MicrosoftCredentialsException {
 		try {
 			LinkedList<String> rolesList = new LinkedList<String>();
 			rolesList.add(MicrosoftUser.OWNER);
-
+			
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
 			conversationMember.roles = rolesList;
-
+			
 			conversationMember.additionalDataManager().put("user@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/users('" + userId + "')"));
-
+			
 			getGraphClient().teams(teamId).channels(channelId).members().buildRequest().post(conversationMember);
 		}catch(MicrosoftCredentialsException e) {
 			throw e;
@@ -1255,7 +1289,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	@Override
 	public boolean removeMemberFromChannel(String memberId, String teamId, String channelId) throws MicrosoftCredentialsException {
 		try {
@@ -1270,7 +1304,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return true;
 	}
-
+	
 	// ---------------------------------------- ONLINE MEETINGS --------------------------------------------------
 	/**
 	 * Create online meeting
@@ -1282,10 +1316,10 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	 */
 	public TeamsMeetingData createOnlineMeeting(String userEmail, String subject, Instant startDate, Instant endDate) throws MicrosoftCredentialsException {
 		TeamsMeetingData result = null;
-
+		
 		// Get organizer user
 		MicrosoftUser organizerUser = getUserByEmail(userEmail);
-
+		
 		if(organizerUser != null) {
 			// Organizer
 			MeetingParticipantInfo organizer = new MeetingParticipantInfo();
@@ -1293,18 +1327,18 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			Identity iden = new Identity();
 			iden.id = organizerUser.getId();
 			iden.displayName = organizerUser.getName();
-			organizerIdentity.user = iden;
+			organizerIdentity.user = iden; 
 			organizer.identity = organizerIdentity;
 			organizer.role = OnlineMeetingRole.PRESENTER;
-
+			
 			// Participants
 			MeetingParticipants participants = new MeetingParticipants();
 			participants.organizer = organizer;
-
+			
 			// Lobby Settings
 			LobbyBypassSettings lobbySettings = new LobbyBypassSettings();
 			lobbySettings.scope = LobbyBypassScope.ORGANIZATION;
-
+			
 			// Online Meeting
 			OnlineMeeting onlineMeeting = new OnlineMeeting();
 			if (startDate != null) { onlineMeeting.startDateTime = OffsetDateTime.ofInstant(startDate, ZoneId.systemDefault()); }
@@ -1313,40 +1347,40 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			onlineMeeting.subject = subject;
 			onlineMeeting.lobbyBypassSettings = lobbySettings;
 			onlineMeeting.allowedPresenters = OnlineMeetingPresenters.ROLE_IS_PRESENTER;
-
+			
 			OnlineMeeting meeting = getGraphClient().users(organizerUser.getId()).onlineMeetings()
 				.buildRequest()
 				.post(onlineMeeting);
-
+			
 			result = new TeamsMeetingData();
 			result.setId(meeting.id);
 			result.setJoinUrl(meeting.joinWebUrl);
 		}
 		return result;
 	}
-
+	
 	@Override
 	public void updateOnlineMeeting(String userEmail, String meetingId, String subject, Instant startDate, Instant endDate) throws MicrosoftCredentialsException {
 		// Get organizer user
 		MicrosoftUser organizerUser = getUserByEmail(userEmail);
-
+		
 		if(organizerUser != null) {
 			// Online Meeting
 			OnlineMeeting onlineMeeting = new OnlineMeeting();
 			onlineMeeting.startDateTime = OffsetDateTime.ofInstant(startDate, ZoneId.systemDefault());
 			onlineMeeting.endDateTime = OffsetDateTime.ofInstant(endDate, ZoneId.systemDefault());
 			onlineMeeting.subject = subject;
-
+			
 			getGraphClient().users(organizerUser.getId()).onlineMeetings(meetingId)
 					.buildRequest()
 					.patch(onlineMeeting);
 		}
 	}
-
+	
 	@Override
 	public List<MeetingRecordingData> getOnlineMeetingRecordings(String onlineMeetingId, List<String> teamIdsList, boolean force) throws MicrosoftCredentialsException{
 		List<MeetingRecordingData> ret = new ArrayList<>();
-
+		
 		//get from cache (if not forced)
 		if(!force) {
 			Cache.ValueWrapper cachedValue = getCache().get(CACHE_RECORDINGS+onlineMeetingId);
@@ -1357,7 +1391,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		ChatMessageCollectionPage page = getGraphClient().chats(onlineMeetingId).messages()
 				.buildRequest()
 				.get();
-
+		
 		while (page != null) {
 			//explore chat messages from given meeting
 			for(ChatMessage message : page.getCurrentPage()) {
@@ -1371,7 +1405,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 								.name(details.callRecordingDisplayName)
 								.url(details.callRecordingUrl)
 								.organizerId(details.initiator.user.id);
-
+							
 							//get driveItem (file in one-drive) from given webURL
 							//we will use this call to check if link is still valid
 							MicrosoftDriveItem driveItem = getDriveItemFromLink(details.callRecordingUrl);
@@ -1402,14 +1436,19 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 		return ret;
 	}
-
+	
 	// ---------------------------------------- ONE-DRIVE (APPLICATION) --------------------------------------------------------
 	@Override
 	public List<MicrosoftDriveItem> getGroupDriveItems(String groupId) throws MicrosoftCredentialsException {
+		return getGroupDriveItems(groupId, null);
+	}
+	
+	@Override
+	public List<MicrosoftDriveItem> getGroupDriveItems(String groupId, List<String> channelIds) throws MicrosoftCredentialsException {
 		List<MicrosoftDriveItem> ret = getGroupDriveItemsByItemId(groupId, null);
 		//at this point we only have root files and folders, excluding private channels folders.
 		//we need to get all private channels from Team (bypassing the cache), and the DriveItem related to it
-		for(String channelId : getTeamPrivateChannels(groupId, true).keySet()) {
+		for(String channelId : (channelIds == null) ? getTeamPrivateChannels(groupId, true).keySet() : channelIds) {
 			MicrosoftDriveItem item = getDriveItemFromChannel(groupId, channelId);
 			if(item != null) {
 				ret.add(item);
@@ -1417,15 +1456,15 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	@Override
 	public List<MicrosoftDriveItem> getGroupDriveItemsByItemId(String groupId, String itemId) throws MicrosoftCredentialsException {
-
+		
 		String cacheItemKey = itemId;
 		if(cacheItemKey == null) {
 			cacheItemKey = "ROOT";
 		}
-
+		
 		Map<String, List<MicrosoftDriveItem>> driveItemsMap = null;
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_DRIVE_ITEMS_GROUP + groupId);
 		if(cachedValue != null) {
@@ -1434,10 +1473,9 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return driveItemsMap.get(cacheItemKey);
 			}
 		}
-
+		
 		List<MicrosoftDriveItem> ret = new ArrayList<>();
 		try {
-
 			DriveItemCollectionPage itemPage = null;
 			if(itemId != null) {
 				itemPage = getGraphClient().groups(groupId).drive().items(itemId).children().buildRequest().get();
@@ -1451,9 +1489,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.id(item.id)
 						.name(item.name)
 						.url(item.webUrl)
+						.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 						.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
 						.downloadURL((adm!=null) ? adm.getAsString() : null)
-						.processPath((item.parentReference != null) ? item.parentReference.path : null)
+						.path((item.parentReference != null) ? item.parentReference.path : null)
 						.folder(item.folder != null)
 						.childCount((item.folder != null) ? item.folder.childCount : 0)
 						.size(item.size)
@@ -1465,7 +1506,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (itemBuilder == null) break;
 				itemPage = itemBuilder.buildRequest().get();
 			}
-
+			
 			if(driveItemsMap == null) {
 				driveItemsMap = new HashMap<>();
 			}
@@ -1478,7 +1519,30 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
+	@Override
+	public List<MicrosoftDriveItem> getAllGroupDriveItems(String groupId, List<String> channelIds, MicrosoftDriveItemFilter filter) throws MicrosoftCredentialsException {
+		List<MicrosoftDriveItem> ret = new ArrayList<>();
+		try {
+			ret.addAll(getGroupDriveItems(groupId, channelIds)
+					.stream()
+					.filter(i -> (filter != null) ? filter.matches(i) : true)
+					.collect(Collectors.toList())
+			);
+			
+			for(MicrosoftDriveItem baseItem : ret) {
+				if(baseItem.isFolder() && baseItem.hasChildren()) {
+					exploreDriveItem(baseItem, filter, null);
+				}
+			}
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		} catch(Exception e) {
+			log.debug("Error getting All Drive Items for groupId={}", groupId);
+		}
+		return ret;
+	}
+	
 	@Override
 	public MicrosoftDriveItem getDriveItemFromLink(String link) throws MicrosoftCredentialsException {
 		MicrosoftDriveItem ret = null;
@@ -1497,9 +1561,40 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	@Override
-		public MicrosoftDriveItem getDriveItemFromChannel(String teamId, String channelId) throws MicrosoftCredentialsException {
+	public MicrosoftDriveItem getDriveItemFromTeam(String teamId) throws MicrosoftCredentialsException {
+		MicrosoftDriveItem ret = null;
+		try {
+			DriveItem item = getGraphClient()
+					.groups(teamId)
+					.drive()
+					.root()
+					.buildRequest()
+					.get();
+			ret = MicrosoftDriveItem.builder()
+					.id(item.id)
+					.name(item.name)
+					.url(item.webUrl)
+					.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
+					.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
+					.depth(0)
+					.folder(item.folder != null)
+					.childCount((item.folder != null) ? item.folder.childCount : 0)
+					.size(item.size)
+					.build();
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch (Exception e) {
+			log.debug("Error getting driveItem from team={}", teamId);
+		}
+		return ret;
+	}
+	
+	@Override
+	public MicrosoftDriveItem getDriveItemFromChannel(String teamId, String channelId) throws MicrosoftCredentialsException {
 		MicrosoftDriveItem ret = null;
 		try {
 			DriveItem item = getGraphClient()
@@ -1512,6 +1607,9 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					.id(item.id)
 					.name(item.name)
 					.url(item.webUrl)
+					.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 					.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
 					.depth(0)
 					.folder(item.folder != null)
@@ -1525,19 +1623,19 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	@Override
 	public boolean grantReadPermissionToTeam(String driveId, String itemId, String teamId) throws MicrosoftCredentialsException {
 		try {
 			DriveRecipient recipient = new DriveRecipient();
 			recipient.objectId = teamId;
-
+			
 			LinkedList<DriveRecipient> recipientsList = new LinkedList<DriveRecipient>();
 			recipientsList.add(recipient);
-
+			
 			LinkedList<String> rolesList = new LinkedList<String>();
 			rolesList.add(PERMISSION_READ);
-
+			
 			getGraphClient()
 					.drives(driveId).items(itemId)
 					.invite(DriveItemInviteParameterSet
@@ -1557,21 +1655,125 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return false;
 	}
-
-		// ---------------------------------------- ONE-DRIVE (DELEGATED) --------------------------------------------------------
+	
+	@Override
+	public String createLinkForTeams(MicrosoftDriveItem item, List<String> teamIds, PermissionRoles role) throws MicrosoftCredentialsException {
+		String ret = null;
+		if(item != null) {
+			ret = createLinkForTeams(item.getDriveId(), item.getId(), teamIds, role);
+			item.setLinkURL(ret);
+		}
+		return ret;
+	}
+	
+	@Override
+	public String createLinkForTeams(String driveId, String itemId, List<String> teamIds, PermissionRoles role) throws MicrosoftCredentialsException {
+		try {
+			Permission p = getGraphClient()
+					.drives(driveId)
+					.items(itemId)
+					.createLink(DriveItemCreateLinkParameterSet
+							.newBuilder()
+							.withType((role == PermissionRoles.WRITE) ? LINK_TYPE_EDIT : LINK_TYPE_VIEW)
+							.withScope(LINK_SCOPE_USERS)
+							.build())
+					.buildRequest()
+					.post();
+			
+			if(p != null) {				
+				List<DriveRecipient> recipientsList = teamIds.stream()
+					.map(id -> { 
+						DriveRecipient r = new DriveRecipient();
+						r.objectId = id;
+						return r; 
+					})
+					.collect(Collectors.toList());
+				
+				LinkedList<String> rolesList = new LinkedList<String>();
+				rolesList.add((role == PermissionRoles.WRITE) ? PERMISSION_WRITE : PERMISSION_READ);
+				
+				getGraphClient()
+						.shares(p.shareId)
+						.permission()
+						.grant(PermissionGrantParameterSet
+								.newBuilder()
+								.withRoles(rolesList)
+								.withRecipients(recipientsList)
+								.build())
+						.buildRequest()
+						.post();
+				
+				return p.link.webUrl;
+			}
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch (Exception e) {
+			log.debug("Error creating link for itemId={} from drive={} to teamIds={}", itemId, driveId, teamIds);
+		}
+		return null;
+	}
+	
+	@Override
+	public String getThumbnail(MicrosoftDriveItem item, Integer maxWidth, Integer maxHeight) throws MicrosoftCredentialsException {
+		String ret = null;
+		try {
+			ThumbnailSet thumbnailSet = getGraphClient()
+				.drives(item.getDriveId())
+				.items(item.getId())
+				.thumbnails("0") //is always zero?
+				.buildRequest()
+				.get();
+			
+			if(maxWidth != null && maxHeight != null && maxWidth > 0 && maxHeight > 0) {
+				if(thumbnailSet.large.width <= maxWidth && thumbnailSet.large.height <= maxHeight) {
+					ret = thumbnailSet.large.url;
+				} else if(thumbnailSet.medium.width <= maxWidth && thumbnailSet.medium.height <= maxHeight) {
+					ret = thumbnailSet.medium.url;
+				} else {
+					ret = thumbnailSet.small.url;
+				}
+			} else {
+				ret = thumbnailSet.large.url;
+			}
+			
+			item.setThumbnail(ret);
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch (Exception e) {
+			log.debug("Error gettting Thumbnail for itemId={} from drive={}", item.getId(), item.getDriveId());
+		}
+		return ret;
+	}
+	
+	@Override
+	public boolean deleteDriveItem(MicrosoftDriveItem item) throws MicrosoftCredentialsException {
+		try {
+			getGraphClient().drives(item.getDriveId()).items(item.getId())
+				.buildRequest()
+				.delete();
+			return true;
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch (Exception e) {
+			log.warn("Error deleting DriveItem drive={}, id={}", item.getDriveId(), item.getId());
+		}
+		return false;
+	}
+	
+	// ---------------------------------------- ONE-DRIVE (DELEGATED) --------------------------------------------------------
 	@Override
 	public List<MicrosoftDriveItem> getMyDriveItems(String userId) throws MicrosoftCredentialsException {
 		return getMyDriveItemsByItemId(userId, null);
 	}
-
+	
 	@Override
 	public List<MicrosoftDriveItem> getMyDriveItemsByItemId(String userId, String itemId) throws MicrosoftCredentialsException {
-
+		
 		String cacheItemKey = itemId;
 		if(cacheItemKey == null) {
 			cacheItemKey = "ROOT";
 		}
-
+		
 		Map<String, List<MicrosoftDriveItem>> driveItemsMap = null;
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_DRIVE_ITEMS_USER + userId);
 		if(cachedValue != null) {
@@ -1580,11 +1782,11 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return driveItemsMap.get(cacheItemKey);
 			}
 		}
-
+		
 		List<MicrosoftDriveItem> ret = new ArrayList<>();
 		try {
 			GraphServiceClient client = (GraphServiceClient)microsoftAuthorizationService.getDelegatedGraphClient(userId);
-
+			
 			DriveItemCollectionPage itemPage = null;
 			if(itemId != null) {
 				itemPage = client.me().drive().items(itemId).children().buildRequest().get();
@@ -1598,9 +1800,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.id(item.id)
 						.name(item.name)
 						.url(item.webUrl)
+						.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 						.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
 						.downloadURL((adm!=null) ? adm.getAsString() : null)
-						.processPath((item.parentReference != null) ? item.parentReference.path : null)
+						.path((item.parentReference != null) ? item.parentReference.path : null)
 						.folder(item.folder != null)
 						.childCount((item.folder != null) ? item.folder.childCount : 0)
 						.size(item.size)
@@ -1612,7 +1817,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (itemBuilder == null) break;
 				itemPage = itemBuilder.buildRequest().get();
 			}
-
+			
 			if(driveItemsMap == null) {
 				driveItemsMap = new HashMap<>();
 			}
@@ -1625,11 +1830,34 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
+	@Override
+	public List<MicrosoftDriveItem> getAllMyDriveItems(String userId, MicrosoftDriveItemFilter filter) throws MicrosoftCredentialsException {
+		List<MicrosoftDriveItem> ret = new ArrayList<>();
+		try {
+			ret.addAll(getMyDriveItems(userId)
+					.stream()
+					.filter(i -> (filter != null) ? filter.matches(i) : true)
+					.collect(Collectors.toList())
+			);
+			
+			for(MicrosoftDriveItem baseItem : ret) {
+				if(baseItem.isFolder() && baseItem.hasChildren()) {
+					exploreDriveItem(baseItem, filter, userId);
+				}
+			}
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		} catch(Exception e) {
+			log.debug("Error getting All My Drive Items for userId={}", userId);
+		}
+		return ret;
+	}
+	
 	@Override
 	public List<MicrosoftDriveItem> getMySharedDriveItems(String userId) throws MicrosoftCredentialsException {
 		String cacheItemKey = "SHARED";
-
+		
 		Map<String, List<MicrosoftDriveItem>> driveItemsMap = null;
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_DRIVE_ITEMS_USER + userId);
 		if(cachedValue != null) {
@@ -1638,7 +1866,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return driveItemsMap.get(cacheItemKey);
 			}
 		}
-
+		
 		List<MicrosoftDriveItem> ret = new ArrayList<>();
 		try {
 			GraphServiceClient client = (GraphServiceClient)microsoftAuthorizationService.getDelegatedGraphClient(userId);
@@ -1649,6 +1877,9 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.id(item.id)
 						.name(item.name)
 						.url(item.webUrl)
+						.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 						.driveId((item.remoteItem != null && item.remoteItem.parentReference != null) ? item.remoteItem.parentReference.driveId : null)
 						.shared(true) //IMPORTANT: identify these items as shared (they have uncompleted data)
 						.downloadURL(null)
@@ -1664,7 +1895,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (itemBuilder == null) break;
 				itemPage = itemBuilder.buildRequest().get();
 			}
-
+			
 			if(driveItemsMap == null) {
 				driveItemsMap = new HashMap<>();
 			}
@@ -1677,12 +1908,35 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
+	@Override
+	public List<MicrosoftDriveItem> getAllMySharedDriveItems(String userId, MicrosoftDriveItemFilter filter) throws MicrosoftCredentialsException {
+		List<MicrosoftDriveItem> ret = new ArrayList<>();
+		try {
+			ret.addAll(getMySharedDriveItems(userId)
+					.stream()
+					.filter(i -> (filter != null) ? filter.matches(i) : true)
+					.collect(Collectors.toList())
+			);
+			
+			for(MicrosoftDriveItem baseItem : ret) {
+				if(baseItem.isFolder() && baseItem.hasChildren()) {
+					exploreDriveItem(baseItem, filter, userId);
+				}
+			}
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		} catch(Exception e) {
+			log.debug("Error getting All My Shared Drive Items for userId={}", userId);
+		}
+		return ret;
+	}
+	
 	// ---------------------------------------- ONE-DRIVE (MIXED) --------------------------------------------------------
 	@Override
 	public MicrosoftDriveItem getDriveItem(String driveId, String itemId, String delegatedUserId) throws MicrosoftCredentialsException{
 		String cacheItemKey = itemId;
-
+		
 		Map<String, Map<String, Object>> driveItemsMap = null;
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_DRIVE_ITEMS);
 		if(cachedValue != null) {
@@ -1691,7 +1945,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return (MicrosoftDriveItem)driveItemsMap.get(driveId).get(cacheItemKey);
 			}
 		}
-
+		
 		MicrosoftDriveItem ret = null;
 		try {
 			DriveItem item = null;
@@ -1701,23 +1955,26 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			} else {
 				item = getGraphClient().drives(driveId).items(itemId).buildRequest().get();
 			}
-
+			
 			if (item != null) {
 				JsonElement adm = item.additionalDataManager().get("@microsoft.graph.downloadUrl");
 				ret = MicrosoftDriveItem.builder()
 						.id(item.id)
 						.name(item.name)
 						.url(item.webUrl)
+						.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 						.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
 						.downloadURL((adm!=null) ? adm.getAsString() : null)
-						.processPath((item.parentReference != null) ? item.parentReference.path : null)
+						.path((item.parentReference != null) ? item.parentReference.path : null)
 						.folder(item.folder != null)
 						.childCount((item.folder != null) ? item.folder.childCount : 0)
 						.size(item.size)
 						.mimeType((item.file != null) ? item.file.mimeType : null)
 						.build();
 			}
-
+			
 			if(driveItemsMap == null) {
 				driveItemsMap = new HashMap<>();
 			}
@@ -1730,20 +1987,20 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	@Override
 	public List<MicrosoftDriveItem> getDriveItems(String driveId, String delegatedUserId) throws MicrosoftCredentialsException {
 		return getDriveItemsByItemId(driveId, null, delegatedUserId);
 	}
-
+	
 	@Override
 	public List<MicrosoftDriveItem> getDriveItemsByItemId(String driveId, String itemId, String delegatedUserId) throws MicrosoftCredentialsException {
-
+		
 		String cacheItemKey = itemId;
 		if(cacheItemKey == null) {
 			cacheItemKey = "ROOT";
 		}
-
+		
 		Map<String, Map<String, Object>> driveItemsMap = null;
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_DRIVE_ITEMS);
 		if(cachedValue != null) {
@@ -1752,7 +2009,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				return (List<MicrosoftDriveItem>)driveItemsMap.get(driveId).get(cacheItemKey);
 			}
 		}
-
+		
 		List<MicrosoftDriveItem> ret = new ArrayList<>();
 		try {
 			DriveItemCollectionPage itemPage = null;
@@ -1770,7 +2027,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 					itemPage = getGraphClient().drives(driveId).root().children().buildRequest().get();
 				}
 			}
-
+			
 			while (itemPage != null) {
 				ret.addAll(itemPage.getCurrentPage().stream().map(item -> {
 					JsonElement adm = item.additionalDataManager().get("@microsoft.graph.downloadUrl");
@@ -1778,9 +2035,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						.id(item.id)
 						.name(item.name)
 						.url(item.webUrl)
+						.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+						.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
 						.driveId((item.parentReference != null) ? item.parentReference.driveId : null)
 						.downloadURL((adm!=null) ? adm.getAsString() : null)
-						.processPath((item.parentReference != null) ? item.parentReference.path : null)
+						.path((item.parentReference != null) ? item.parentReference.path : null)
 						.folder(item.folder != null)
 						.childCount((item.folder != null) ? item.folder.childCount : 0)
 						.size(item.size)
@@ -1792,7 +2052,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 				if (itemBuilder == null) break;
 				itemPage = itemBuilder.buildRequest().get();
 			}
-
+			
 			if(driveItemsMap == null) {
 				driveItemsMap = new HashMap<>();
 			}
@@ -1805,7 +2065,135 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
+	@Override
+	public MicrosoftDriveItem createDriveItem(MicrosoftDriveItem parent, MicrosoftDriveItem.TYPE type, String name, String delegatedUserId) throws MicrosoftCredentialsException {
+		MicrosoftDriveItem ret = null;
+		try {
+			GraphServiceClient client = null;
+			if(StringUtils.isNotBlank(delegatedUserId)) {
+				client = (GraphServiceClient)microsoftAuthorizationService.getDelegatedGraphClient(delegatedUserId);
+			} else {
+				client = getGraphClient();
+			}
+			
+			DriveItem newItem = new DriveItem();
+			newItem.name = name;
+			if(type == MicrosoftDriveItem.TYPE.FOLDER) {
+				newItem.folder = new Folder();
+			} else {
+				if(!name.toLowerCase().endsWith(type.getExt())) {
+					newItem.name = name + type.getExt();
+				}
+				newItem.file = new com.microsoft.graph.models.File();
+			}
+			newItem.additionalDataManager().put("@microsoft.graph.conflictBehavior", new JsonPrimitive("rename"));
+			
+			DriveItem item = client.drives(parent.getDriveId()).items(parent.getId()).children().buildRequest().post(newItem);
+			ret = MicrosoftDriveItem.builder()
+					.id(item.id)
+					.name(item.name)
+					.url(item.webUrl)
+					.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+					.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
+					.driveId(parent.getDriveId())
+					.path((item.parentReference != null) ? item.parentReference.path : null)
+					.folder(item.folder != null)
+					.childCount(0)
+					.size(item.size)
+					.mimeType((item.file != null) ? item.file.mimeType : null)
+					.build();
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch (Exception e) {
+			log.warn("Error creating DriveItem name={}, type={} in drive={} and parent={}", name, type, parent.getDriveId(), parent.getId());
+		}
+		return ret;
+	}
+	
+	@Override
+	public MicrosoftDriveItem uploadDriveItem(MicrosoftDriveItem parent, File file, String name, String delegatedUserId) throws MicrosoftCredentialsException {
+		MicrosoftDriveItem ret = null;
+		try {
+			GraphServiceClient client = null;
+			if(StringUtils.isNotBlank(delegatedUserId)) {
+				client = (GraphServiceClient)microsoftAuthorizationService.getDelegatedGraphClient(delegatedUserId);
+			} else {
+				client = getGraphClient();
+			}
+			
+			// Get an input stream for the file
+			InputStream fileStream = new FileInputStream(file);
+			long streamSize = file.length();
+	
+			final DriveItemUploadableProperties upProps = new DriveItemUploadableProperties();
+			upProps.additionalDataManager().put("@microsoft.graph.conflictBehavior", new JsonPrimitive("rename"));
+			
+			final DriveItemCreateUploadSessionParameterSet uploadParams = DriveItemCreateUploadSessionParameterSet.newBuilder().withItem(upProps).build();
+			
+			// Create an upload session
+			final UploadSession uploadSession = client
+					.drives(parent.getDriveId())
+					.items(parent.getId())
+					.itemWithPath(name)
+					.createUploadSession(uploadParams)
+					.buildRequest()
+					.post();
+	
+			if (null == uploadSession) {
+				fileStream.close();
+				log.warn("Error creating upload session in drive={} and parent={}", parent.getDriveId(), parent.getId());
+				return null;
+			}
+	
+			LargeFileUploadTask<DriveItem> largeFileUploadTask = new LargeFileUploadTask<DriveItem>(uploadSession, client, fileStream, streamSize, DriveItem.class);
+	
+			// Do the upload
+			LargeFileUploadResult<DriveItem> result = largeFileUploadTask.upload();
+			
+			DriveItem item = result.responseBody;
+			ret = MicrosoftDriveItem.builder()
+				.id(item.id)
+				.name(item.name)
+				.url(item.webUrl)
+				.createdAt((item.createdDateTime != null) ? item.createdDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+				.modifiedAt((item.lastModifiedDateTime != null) ? item.lastModifiedDateTime.atZoneSameInstant(sakaiProxy.getUserTimeZoneId()) : null)
+				.modifiedBy((item.lastModifiedBy != null && item.lastModifiedBy.user != null) ? item.lastModifiedBy.user.displayName : null)
+				.driveId(parent.getDriveId())
+				.path((item.parentReference != null) ? item.parentReference.path : null)
+				.folder(item.folder != null)
+				.childCount(0)
+				.size(item.size)
+				.mimeType((item.file != null) ? item.file.mimeType : null)
+				.build();
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		}catch(Exception e) {
+			log.warn("Error uploading DriveItem name={} to drive={} and parent={}", name, parent.getDriveId(), parent.getId());
+		}
+		return ret;
+	}
+	
+	private void exploreDriveItem(MicrosoftDriveItem driveItem, MicrosoftDriveItemFilter filter, String delegatedUserId) throws MicrosoftCredentialsException {
+		try {
+			List<MicrosoftDriveItem> children = getDriveItemsByItemId(driveItem.getDriveId(), driveItem.getId(), delegatedUserId)
+					.stream()
+					.filter(i -> (filter != null) ? filter.matches(i) : true)
+					.collect(Collectors.toList());
+			for(MicrosoftDriveItem item : children) {
+				if(item.isFolder() && item.hasChildren()) {
+					exploreDriveItem(item, filter, delegatedUserId);
+				}
+			}
+			driveItem.setChildren(children);
+		}catch(MicrosoftCredentialsException e) {
+			throw e;
+		} catch(Exception e) {
+			log.debug("Error exploring Drive Item with driveId={} and itemId={}", driveItem.getDriveId(), driveItem.getId());
+		}
+	}
+	
 	// ---------------------------------------- PRIVATE FUNCTIONS ------------------------------------------------
 
 	private String getMemberKeyValue(AadUserConversationMember member, MicrosoftUserIdentifier key) {
@@ -1816,7 +2204,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			case USER_ID:
 				ret = member.userId;
 				break;
-
+	
 			case EMAIL:
 				ret = (member.email != null) ? member.email.toLowerCase() : null;
 				break;
@@ -1827,7 +2215,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		}
 		return ret;
 	}
-
+	
 	//https://learn.microsoft.com/en-us/graph/known-issues#create-channel-can-return-an-error-response
 	private String formatMicrosoftString(String str) {
 		String[] charsToReplace = {"\\~", "#", "%", "&", "\\*", "\\{", "\\}", "\\+", "/", "\\\\", ":", "<", ">", "\\?", "\\|", "‘", "`", "´", "”", "\""};
@@ -1840,7 +2228,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		return str;
 	}
 
-		private String encodeWebURL(String link) {
+	private String encodeWebURL(String link) {
 		try {
 			String base64Link = Base64.getUrlEncoder().encodeToString(link.getBytes());
 			return "u!"+base64Link.replaceAll("=+$", "").replace('/', '_').replace('+','-');
