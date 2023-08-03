@@ -20,7 +20,8 @@
 					<div class="form-group" th:classappend="${item.key == 'SYNCH:DELETE_TEAM'}? 'form-child'" th:each="item : ${synch_config_items}">
 						<input class="form-control" type='checkbox' th:id="|cb_${item.key}|" name="synch_config_items" th:checked="${item.value}" th:value="${item.key}" />
 						<label th:for="|cb_${item.key}|" th:text="#{|config.${item.key}|}"></label>
-												<div id="newsite-container" th:if="${item.key} == 'SYNCH:CREATE_TEAM'">
+						
+						<div id="newsite-container" th:if="${item.key} == 'SYNCH:CREATE_TEAM'">
 							<div th:classappend="${item.value} ? '' : 'hidden'"
 								th:insert="fragments/siteFilter :: siteFilter (prefix='siteFilter',columnClassName='col-md-2')">
 							</div>
@@ -43,16 +44,15 @@
 					<div class="form-group">
 						<div th:insert="fragments/siteFilter :: siteFilter (prefix='jobSiteFilter',columnClassName='col-md-2')">
 						</div>
-
 					</div>
 				</fieldset>
-
+				
 				<fieldset class="config-fieldset">
 					<legend th:text="#{config.onedrive_config}"></legend>
 					<div class="form-group">
 						<label>
 							<input class="form-control" type='checkbox' name="onedriveEnabled" th:checked="${onedriveEnabled}" />
-							<span class="control-label title-row" th:text="#{config.onedrive_enabled}">OneDrive enabled</span>
+							<span class="title-row" th:text="#{config.onedrive_enabled}">OneDrive enabled</span>
 						</label>
 					</div>
 				</fieldset>
@@ -66,7 +66,7 @@
 						</label>
 					</div>
 				</fieldset>
-
+				
 				<fieldset class="config-fieldset">
 					<legend th:text="#{config.id_mapping}"></legend>
 					<div>
@@ -79,7 +79,7 @@
 							</select>
 						</div>
 					</div>
-
+					
 					<div>
 						<label th:text="#{config.microsoft_user_id}"></label>
 						<div>
@@ -89,17 +89,16 @@
 							</select>
 						</div>
 					</div>
-					</fieldset>
-					<div class="act">
-						<input class="active" type='submit' th:value="#{save}" />
-					<	input type='button' th:value="#{cancel}" th:onclick="'window.location.href = \'' +@{/index}+ '\''" />
-					</div>
+				</fieldset>
+				<div class="act">
+					<input class="active" type='submit' th:value="#{save}" />
+					<input type='button' th:value="#{cancel}" th:onclick="'window.location.href = \'' +@{/index}+ '\''" />
+				</div>
 			</form>
 		</div>
-
+		
 		<script th:inline="javascript">
-						(function () {
-
+			(function () {
 				document.getElementById('cb_SYNCH:CREATE_TEAM').addEventListener('change', function(e){
 					if(this.checked){
 						//show
@@ -114,7 +113,7 @@
 				document.getElementById('cb_SYNCH:DELETE_SYNCH').addEventListener('change', function(e){
 					document.getElementById('cb_SYNCH:DELETE_TEAM').disabled = !this.checked;
 				});
-
+				
 				document.querySelectorAll('.my-info-class').forEach((item) => {
 					$(item).popover();
 				});
