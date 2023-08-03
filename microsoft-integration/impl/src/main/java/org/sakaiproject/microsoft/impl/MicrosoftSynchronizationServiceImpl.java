@@ -71,28 +71,28 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 
 	@Setter
 	MicrosoftSiteSynchronizationRepository microsoftSiteSynchronizationRepository;
-
+	
 	@Setter
 	MicrosoftGroupSynchronizationRepository microsoftGroupSynchronizationRepository;
-
+	
 	@Setter
 	MicrosoftConfigRepository microsoftConfigRepository;
-
+	
 	@Setter
 	MicrosoftLoggingRepository microsoftLoggingRepository;
-
+	
 	@Autowired
 	private MicrosoftCommonService microsoftCommonService;
-
+	
 	@Autowired
 	private SakaiProxy sakaiProxy;
-
+	
 	@Autowired
 	private SessionManager sessionManager;
-
+	
 	@Autowired
 	private MicrosoftMessagingService microsoftMessagingService;
-
+	
 	//used in hooks. Sometimes we need to stop listening some events
 	private Set<String> disabledGroupListeners = ConcurrentHashMap.newKeySet();
 	//used in hooks to synchronize. "add users to group" must happen after "create group" 
@@ -100,34 +100,34 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 
 	public void init() {
 		log.info("Initializing MicrosoftSynchService Service");
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.CREATE_ELEMENT, message -> {
 			printMessage(MicrosoftMessage.Topic.CREATE_ELEMENT, message);
 			elementCreated(message);
 		});
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.DELETE_ELEMENT, message -> {
 			printMessage(MicrosoftMessage.Topic.DELETE_ELEMENT, message);
 			elementDeleted(message);
 		});
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.MODIFY_ELEMENT, message -> {
 			printMessage(MicrosoftMessage.Topic.MODIFY_ELEMENT, message);
 			elementModified(message);
 		});
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.ADD_MEMBER_TO_AUTHZGROUP, message -> {
 			Session sakaiSession = startAdminSession();
 			printMessage(MicrosoftMessage.Topic.ADD_MEMBER_TO_AUTHZGROUP, message);
 			userAddedToAuthzGroup(message);
 			endAdminSession(sakaiSession);
 		});
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.REMOVE_MEMBER_FROM_AUTHZGROUP, message -> {
 			printMessage(MicrosoftMessage.Topic.REMOVE_MEMBER_FROM_AUTHZGROUP, message);
 			userRemovedFromAuthzGroup(message);
 		});
-
+		
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.TEAM_CREATION, message -> {
 			printMessage(MicrosoftMessage.Topic.TEAM_CREATION, message);
 			teamCreated(message);
@@ -138,20 +138,20 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			updateListenGroupEvents(message);
 		});
 	}
-
+	
 	private Session startAdminSession() {
 		Session sakaiSession = sessionManager.getCurrentSession();
 		sakaiSession.setUserId("admin");
 		sakaiSession.setUserEid("admin");
 		return sakaiSession;
 	}
-
+	
 	private void endAdminSession(Session sakaiSession) {
 		sakaiSession.setUserId(null);
 		sakaiSession.setUserId(null);
 		sakaiSession.clear();
 	}
-
+	
 	private void printMessage(MicrosoftMessage.Topic topic, MicrosoftMessage msg) {
 		log.debug("Message listen from MicrosoftSynchronizationServiceImpl: TOPIC={} => action={}, type={}, siteId={}, groupId={}, userId={}, status={}, owner={}, forced={}",
 				topic,
@@ -186,7 +186,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						.addData("groupId", teamId)
 						.build());
 			}
-
+			
 			//force cache update (try-repeat every 5 seconds x5)
 			mt = microsoftCommonService.getTeam(teamId, true);
 			int count = 5;
@@ -198,7 +198,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		}
 		return mt != null;
 	}
-
+	
 	@Override
 	public List<SiteSynchronization> getAllSiteSynchronizations(boolean fillSite) {
 		List<SiteSynchronization> result = StreamSupport.stream(microsoftSiteSynchronizationRepository.findAll().spliterator(), false)
@@ -211,12 +211,12 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.collect(Collectors.toList());
 		return result;
 	}
-
+	
 	@Override
 	public SiteSynchronization getSiteSynchronization(SiteSynchronization ss) {
 		return getSiteSynchronization(ss, false);
 	}
-
+	
 	@Override
 	public SiteSynchronization getSiteSynchronization(SiteSynchronization ss, boolean fillSite) {
 		if(ss == null) {
@@ -235,27 +235,27 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		}
 		return oss.orElse(null);
 	}
-
+	
 	@Override
 	public List<SiteSynchronization> getSiteSynchronizationsBySite(String siteId){
 		return microsoftSiteSynchronizationRepository.findBySite(siteId);
 	}
-
+	
 	@Override
 	public List<SiteSynchronization> getSiteSynchronizationsByTeam(String teamId){
 		return microsoftSiteSynchronizationRepository.findByTeam(teamId);
 	}
-
+	
 	@Override
 	public long countSiteSynchronizationsByTeamId(String teamId, boolean forced) {
 		return microsoftSiteSynchronizationRepository.countSiteSynchronizationsByTeamId(teamId, forced);
 	}
-
+	
 	@Override
 	public Integer deleteSiteSynchronizations(List<String> ids) {
 		return microsoftSiteSynchronizationRepository.deleteSiteSynchronizationsById(ids);
 	}
-
+	
 	@Override
 	public void saveOrUpdateSiteSynchronization(SiteSynchronization ss) {
 		if(StringUtils.isBlank(ss.getId())) {
@@ -264,7 +264,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftSiteSynchronizationRepository.update(ss);
 		}
 	}
-
+	
 	@Override
 	public boolean removeUsersFromSynchronization(SiteSynchronization ss) throws MicrosoftCredentialsException {
 		boolean ok = false;
@@ -296,7 +296,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					}
 				}
 			}
-
+			
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 					.event(MicrosoftLog.EVENT_ALL_USERS_REMOVED_FROM_TEAM)
@@ -307,22 +307,22 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		}
 		return ok;
 	}
-
+	
 	@Override
 	public SynchronizationStatus checkStatus(SiteSynchronization ss) {
 		SynchronizationStatus ret = SynchronizationStatus.NONE;
 		try {
 			if(checkTeam(ss.getTeamId())) {
-
+			
 				SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 				SakaiMembersCollection siteMembers = sakaiProxy.getSiteMembers(ss.getSiteId(), mappedSakaiUserId);
-
+				
 				MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
 				MicrosoftMembersCollection teamMembers = microsoftCommonService.getTeamMembers(ss.getTeamId(), mappedMicrosoftUserId);
-
+	
 				boolean aux = siteMembers.compareWith(teamMembers, ss.isForced());
 				ret = (aux) ? SynchronizationStatus.OK : SynchronizationStatus.KO;
-
+				
 				if(ss.getGroupSynchronizationsList() != null && ss.getGroupSynchronizationsList().size() > 0) {
 					boolean all_ok = true;
 					boolean error = false;
@@ -335,7 +335,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							all_ok = false;
 						}
 					}
-
+					
 					if(error) {
 						ret = SynchronizationStatus.ERROR;
 					} else if(!all_ok && ret == SynchronizationStatus.OK){
@@ -351,10 +351,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		ss.setStatus(ret);
 		ss.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateSiteSynchronization(ss);
-
+		
 		return ret;
 	}
-
+	
 	//private helper to add member and store log
 	private boolean addMemberToMicrosoftGroupOrTeam(SiteSynchronization ss, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		//from Microsoft API: "Using application permissions to add guest members to a team is not supported."
@@ -380,7 +380,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		microsoftLoggingRepository.save(builder.build());
 		return res;
 	}
-
+	
 	//private helper to add owner and store log
 	private boolean addOwnerToMicrosoftGroupOrTeam(SiteSynchronization ss, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		//from Microsoft API: "Using application permissions to add guest members to a team is not supported."
@@ -406,12 +406,12 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		microsoftLoggingRepository.save(builder.build());
 		return res;
 	}
-
+	
 	//private helper to remove member and store log
 	private boolean removeMemberFromMicrosoftTeam(SiteSynchronization ss, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		log.debug("-> teamId={}, userId={}, email={}, guest={}", ss.getTeamId(), mu.getId(), mu.getEmail(), mu.isGuest());
 		boolean res = microsoftCommonService.removeMemberFromTeam(mu.getMemberId(), ss.getTeamId());
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_USER_REMOVED_FROM_TEAM)
@@ -425,14 +425,14 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		return res;
 	}
-
+	
 	//private helper to create invitation and store log
 	private MicrosoftUser createInvitation(SiteSynchronization ss, User u, SakaiUserIdentifier mappedSakaiUserId, MicrosoftUserIdentifier mappedMicrosoftUserId) throws MicrosoftGenericException {
 		MicrosoftUser mu = null;
 		try {
 			if(microsoftConfigRepository.isAllowedCreateInvitation() && u != null) {
 				mu = microsoftCommonService.createInvitation(u.getEmail(), "https://teams.microsoft.com");
-
+				
 				//if Sakai User is identified by user-property and the property is null or empty --> update that property
 				if(mu != null && mappedSakaiUserId == SakaiUserIdentifier.USER_PROPERTY && StringUtils.isBlank(sakaiProxy.getMemberKeyValue(u, mappedSakaiUserId))) {
 					//save microsoft id in sakai (as user property)
@@ -478,7 +478,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		}
 		return mu;
 	}
-
+	
 	@Override
 	public SynchronizationStatus runSiteSynchronization(SiteSynchronization ss) throws MicrosoftGenericException {
 		SynchronizationStatus ret = SynchronizationStatus.ERROR;
@@ -487,7 +487,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.debug("SS: siteId={}, teamId={} --> OUT OF DATE", ss.getSiteId(), ss.getTeamId());
 			return ret;
 		}
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_SITE_SYNCRHO_START)
@@ -496,29 +496,29 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.addData("teamId", ss.getTeamId())
 				.addData("forced", Boolean.toString(ss.isForced()))
 				.build());
-
+		
 		if(checkTeam(ss.getTeamId())) {
 			ret = SynchronizationStatus.OK;
-
+		
 			SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 			SakaiMembersCollection siteMembers = sakaiProxy.getSiteMembers(ss.getSiteId(), mappedSakaiUserId);
-
+			
 			MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
 			MicrosoftMembersCollection teamMembers = microsoftCommonService.getTeamMembers(ss.getTeamId(), mappedMicrosoftUserId);
-
+			
 			//get site users that are not in team
 			SakaiMembersCollection filteredSiteMembers = siteMembers.diffWith(teamMembers);
-
+			
 			if(log.isDebugEnabled()) {
 				log.debug("diff members...");
 				filteredSiteMembers.getMemberIds().stream().forEach(id -> log.debug("> {}", id));
 				log.debug("diff owners...");
 				filteredSiteMembers.getOwnerIds().stream().forEach(id -> log.debug("> {}", id));
 			}
-
+			
 			//if forced --> we need to remove users in Microsoft that do not exist in Sakai
 			if (ss.isForced()) {
-
+				
 				//process all group synchronizations related - only to remove
 				//users will be removed first from channels
 				if(ss.getGroupSynchronizationsList() != null && ss.getGroupSynchronizationsList().size() > 0) {
@@ -533,10 +533,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						}
 					}
 				}
-
+				
 				//get team members that are not in site
 				MicrosoftMembersCollection filteredTeamMembers = teamMembers.diffWith(siteMembers);
-
+				
 				if(log.isDebugEnabled()) {
 					log.debug("** is forcing");
 					log.debug("inv diff members...");
@@ -557,7 +557,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						ret = SynchronizationStatus.ERROR;
 					}
 				}
-
+				
 				for(Object o : filteredTeamMembers.getOwners().values()) {
 					MicrosoftUser mu = (MicrosoftUser)o;
 					//never remove microsoft "admin" user
@@ -569,7 +569,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						}
 					}
 				}
-
+				
 				for(MicrosoftUser mu : filteredTeamMembers.getGuests().values()) {
 					//remove from team
 					boolean res = removeMemberFromMicrosoftTeam(ss, mu);
@@ -579,9 +579,9 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					}
 				}
 			}
-
+			
 			Map<String, MicrosoftUser> guestUsers = new HashMap<>();
-
+			
 			//process sakai members not in the team
 			for(String id : filteredSiteMembers.getMembers().keySet()) {
 				boolean res = false;
@@ -594,7 +594,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//user does not exist -> create invitation
 					User u = (User)filteredSiteMembers.getMembers().get(id);
 					mu = createInvitation(ss, u, mappedSakaiUserId, mappedMicrosoftUserId);
-
+					
 					if(mu != null) {
 						//store newly invited user in getsUsers map -> used in group synch in case this user do not appear yet in Microsoft registers
 						id = sakaiProxy.getMemberKeyValue(sakaiProxy.getUser(u.getId()), mappedSakaiUserId);
@@ -610,7 +610,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
 			}
-
+			
 			//process sakai owners not in the team
 			for(String id : filteredSiteMembers.getOwners().keySet()) {
 				boolean res = false;
@@ -622,7 +622,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//user does not exist -> create invitation
 					User u = (User)filteredSiteMembers.getOwners().get(id);
 					mu = createInvitation(ss, u, mappedSakaiUserId, mappedMicrosoftUserId);
-
+					
 					if(mu != null) {
 						//store newly invited user in getsUsers map -> used in group synch in case this user do not appear yet in Microsoft registers
 						id = sakaiProxy.getMemberKeyValue(sakaiProxy.getUser(u.getId()), mappedSakaiUserId);
@@ -638,7 +638,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
 			}
-
+			
 			//process all group synchronizations related
 			if(ss.getGroupSynchronizationsList() != null && ss.getGroupSynchronizationsList().size() > 0) {
 				for(GroupSynchronization gs : ss.getGroupSynchronizationsList()) {
@@ -653,11 +653,11 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				}
 			}
 		}
-
+		
 		ss.setStatus(ret);
 		ss.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateSiteSynchronization(ss);
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_SITE_SYNCRHO_END)
@@ -668,18 +668,18 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		return ret;
 	}
-
+	
 	// ---------------------------------------- GROUP SYNCHRONIZATION ------------------------------------------------
 	private boolean checkChannel(String teamId, String channelId) throws MicrosoftCredentialsException {
 		MicrosoftChannel mc = microsoftCommonService.getChannel(teamId, channelId);
 		return (mc != null);
 	}
-
+	
 	@Override
 	public List<GroupSynchronization> getAllGroupSynchronizationsBySiteSynchronizationId(String siteSynchronizationId) {
 		return microsoftGroupSynchronizationRepository.findBySiteSynchronizationId(siteSynchronizationId);
 	}
-
+	
 	@Override
 	public GroupSynchronization getGroupSynchronization(GroupSynchronization gs) {
 		if(gs == null) {
@@ -695,12 +695,12 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		}
 		return ogs.orElse(null);
 	}
-
+	
 	@Override
 	public long countGroupSynchronizationsByChannelId(String channelId) {
 		return microsoftGroupSynchronizationRepository.countGroupSynchronizationsByChannelId(channelId);
 	}
-
+	
 	@Override
 	public void saveOrUpdateGroupSynchronization(GroupSynchronization gs) {
 		if(StringUtils.isBlank(gs.getId())) {
@@ -709,7 +709,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftGroupSynchronizationRepository.update(gs);
 		}
 	}
-
+	
 	@Override
 	public boolean deleteGroupSynchronization(String id) {
 		try {
@@ -719,14 +719,14 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.error("Error deleting GroupSynchronization with id={}", id);
 		}
 		return false;
-
+		
 	}
-
+	
 	@Override
 	public void deleteAllGroupSynchronizationsBySiteSynchronizationId(String siteSynchronizationId) {
 		microsoftGroupSynchronizationRepository.deleteBySiteSynchronizationId(siteSynchronizationId);
 	}
-
+	
 	private SynchronizationStatus checkGroupStatus(SiteSynchronization ss, GroupSynchronization gs, SakaiUserIdentifier mappedSakaiUserId, MicrosoftUserIdentifier mappedMicrosoftUserId) {
 		SynchronizationStatus ret = SynchronizationStatus.NONE;
 		try {
@@ -734,7 +734,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			if(g != null && checkChannel(ss.getTeamId(), gs.getChannelId())) {
 				SakaiMembersCollection groupMembers = sakaiProxy.getGroupMembers(g, mappedSakaiUserId);
 				MicrosoftMembersCollection channelMembers = microsoftCommonService.getChannelMembers(ss.getTeamId(), gs.getChannelId(), mappedMicrosoftUserId);
-
+	
 				boolean aux = groupMembers.compareWith(channelMembers, ss.isForced());
 				ret = (aux) ? SynchronizationStatus.OK : SynchronizationStatus.KO;
 			} else {
@@ -747,15 +747,15 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		gs.setStatus(ret);
 		gs.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateGroupSynchronization(gs);
-
+		
 		return ret;
 	}
-
+	
 	//private helper to add member and store log
 	private boolean addMemberToMicrosoftChannel(SiteSynchronization ss, GroupSynchronization gs, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		log.debug("-> teamId={}, channelId={}, userId={}, email={}, guest={}", ss.getTeamId(), gs.getChannelId(), mu.getId(), mu.getEmail(), mu.isGuest());
 		boolean res = microsoftCommonService.addMemberToChannel(mu.getId(), ss.getTeamId(), gs.getChannelId());
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_USER_ADDED_TO_CHANNEL)
@@ -771,12 +771,12 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		return res;
 	}
-
+	
 	//private helper to add owner and store log
 	private boolean addOwnerToMicrosoftChannel(SiteSynchronization ss, GroupSynchronization gs, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		log.debug("-> teamId={}, channelId={}, userId={}, email={}, guest={}", ss.getTeamId(), gs.getChannelId(), mu.getId(), mu.getEmail(), mu.isGuest());
 		boolean res = (mu.isGuest()) ? microsoftCommonService.addMemberToChannel(mu.getId(), ss.getTeamId(), gs.getChannelId()) : microsoftCommonService.addOwnerToChannel(mu.getId(), ss.getTeamId(), gs.getChannelId());
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_USER_ADDED_TO_CHANNEL)
@@ -792,12 +792,12 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		return res;
 	}
-
+	
 	//private helper to add member and store log
 	private boolean removeMemberFromMicrosoftChannel(SiteSynchronization ss, GroupSynchronization gs, MicrosoftUser mu) throws MicrosoftCredentialsException {
 		log.debug("-> teamId={}, channelId={}, userId={}, email={}, guest={}", ss.getTeamId(), gs.getChannelId(), mu.getId(), mu.getEmail(), mu.isGuest());
 		boolean res = microsoftCommonService.removeMemberFromChannel(mu.getMemberId(), ss.getTeamId(), gs.getChannelId());
-
+		
 		//save log
 		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_USER_REMOVED_FROM_CHANNEL)
@@ -813,7 +813,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		return res;
 	}
-
+	
 	private SynchronizationStatus runGroupSynchronization(SiteSynchronization ss, GroupSynchronization gs, Map<String, MicrosoftUser> guestUsers, SakaiUserIdentifier mappedSakaiUserId, MicrosoftUserIdentifier mappedMicrosoftUserId) throws MicrosoftGenericException {
 		log.debug(".................runGroupSynchronization................");
 		SynchronizationStatus ret = SynchronizationStatus.ERROR;
@@ -823,20 +823,20 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		//check channel
 		if(g != null && mc != null) {
 			ret = SynchronizationStatus.OK;
-
+			
 			SakaiMembersCollection groupMembers = sakaiProxy.getGroupMembers(g, mappedSakaiUserId);
 			MicrosoftMembersCollection channelMembers = microsoftCommonService.getChannelMembers(ss.getTeamId(), gs.getChannelId(), mappedMicrosoftUserId);
-
+			
 			//get group users that are not in channel
 			SakaiMembersCollection filteredGroupMembers = groupMembers.diffWith(channelMembers);
-
+			
 			if(log.isDebugEnabled()) {
 				log.debug("diff group members...");
 				filteredGroupMembers.getMemberIds().stream().forEach(id -> log.debug("> {}", id));
 				log.debug("diff group owners...");
 				filteredGroupMembers.getOwnerIds().stream().forEach(id -> log.debug("> {}", id));
 			}
-
+			
 			for(String id : filteredGroupMembers.getMemberIds()) {
 				boolean res = false;
 				MicrosoftUser mu = microsoftCommonService.getUser(id, mappedMicrosoftUserId);
@@ -856,7 +856,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
 			}
-
+			
 			for(String id : filteredGroupMembers.getOwnerIds()) {
 				boolean res = false;
 				MicrosoftUser mu = microsoftCommonService.getUser(id, mappedMicrosoftUserId);
@@ -870,7 +870,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//IMPORTANT 2: if user is just added to a group (because is guest/invited), maybe can not be added immediately to a channel
 					res = addOwnerToMicrosoftChannel(ss, gs, mu);
 				}
-
+				
 				if(!res && ret != SynchronizationStatus.ERROR) {
 					//once ERROR status is set, do not check it again
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
@@ -880,10 +880,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		gs.setStatus(ret);
 		gs.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateGroupSynchronization(gs);
-
+		
 		return ret;
 	}
-
+	
 	private SynchronizationStatus runGroupSynchronizationForced(SiteSynchronization ss, GroupSynchronization gs, SakaiUserIdentifier mappedSakaiUserId, MicrosoftUserIdentifier mappedMicrosoftUserId) throws MicrosoftGenericException {
 		log.debug(".................runGroupSynchronization - forced................");
 		SynchronizationStatus ret = SynchronizationStatus.ERROR;
@@ -893,14 +893,14 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		//check channel
 		if(g != null && mc != null) {
 			ret = SynchronizationStatus.OK;
-
+			
 			SakaiMembersCollection groupMembers = sakaiProxy.getGroupMembers(g, mappedSakaiUserId);
 			MicrosoftMembersCollection channelMembers = microsoftCommonService.getChannelMembers(ss.getTeamId(), gs.getChannelId(), mappedMicrosoftUserId);
-
+			
 			//is forced --> we need to remove users in Microsoft that do not exist in Sakai
 			//get channel members that are not in group
 			MicrosoftMembersCollection filteredChannelMembers = channelMembers.diffWith(groupMembers);
-
+			
 			if(log.isDebugEnabled()) {
 				log.debug("** is forcing");
 				log.debug("inv group diff members...");
@@ -912,7 +912,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			}
 
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
-
+			
 			for(Object o : filteredChannelMembers.getMembers().values()) {
 				MicrosoftUser mu = (MicrosoftUser)o;
 				//remove from channel
@@ -922,7 +922,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
 			}
-
+			
 			for(Object o : filteredChannelMembers.getOwners().values()) {
 				MicrosoftUser mu = (MicrosoftUser)o;
 				//never remove microsoft "admin" user
@@ -935,7 +935,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					}
 				}
 			}
-
+			
 			for(MicrosoftUser mu : filteredChannelMembers.getGuests().values()) {
 				//remove from channel
 				boolean res = removeMemberFromMicrosoftChannel(ss, gs, mu);
@@ -948,10 +948,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		gs.setStatus(ret);
 		gs.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateGroupSynchronization(gs);
-
+		
 		return ret;
 	}
-
+	
 	// ---------------------------------------- HOOKS ------------------------------------------------
 	//used by site-manage (GUI -> GroupController)
 	//we need to stop listening some events because how group membership is processed
@@ -967,7 +967,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				break;
 		}
 	}
-
+	
 	//new element created (Site or Group)
 	private void elementCreated(MicrosoftMessage msg) {
 		try {
@@ -994,7 +994,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftLoggingRepository.save(builder.build());
 		}
 	}
-
+	
 	//new site created
 	private void siteCreated(String siteId) throws MicrosoftGenericException {
 		if(microsoftConfigRepository.isAllowedCreateTeam()) {
@@ -1008,21 +1008,20 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				//site creation process in Sakai is done in two steps: 1) create empty site, 2) set title + update site
 				//hook is launched on creation, so at this point it's possible title is not establish yet... so, we wait a bit
 				try { Thread.sleep(1000); } catch (InterruptedException e) {}
-
+				
 				Site site = sakaiProxy.getSite(siteId);
 				if(site != null) {
 					//check filters
-					//if only published sites are allowed
 					if(!siteFilter.match(site)) {
 						break;
 					}
-					
+
 					teamId = microsoftCommonService.createTeam(site.getTitle(), credentials.getEmail());
 					if(teamId != null) {
 						long syncDuration = microsoftConfigRepository.getSyncDuration();
 						ZonedDateTime today_midnight = ZonedDateTime.now().with(LocalTime.of(0, 0));
 						ZonedDateTime future_midnight = today_midnight.plusMonths(syncDuration).with(LocalTime.of(23, 59));
-
+						
 						//create relationship
 						SiteSynchronization ss = SiteSynchronization.builder()
 								.siteId(siteId)
@@ -1031,14 +1030,14 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 								.syncDateFrom(today_midnight)
 								.syncDateTo(future_midnight)
 								.build();
-
+		
 						log.debug("saving NEW site-team: siteId={}, teamId={}", siteId, teamId);
 						saveOrUpdateSiteSynchronization(ss);
 					}
 				}
 				count--;
 			}
-
+				
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 					.event(MicrosoftLog.EVENT_SITE_CREATED)
@@ -1046,15 +1045,15 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					.addData("siteId", siteId)
 					.addData("teamId", (teamId != null) ? teamId : "-null-")
 					.build());
-
+		
 		}
 	}
-
+	
 	//new group created
 	private void groupCreated(String siteId, String groupId) throws MicrosoftGenericException {
 		if(microsoftConfigRepository.isAllowedCreateChannel()) {
 			log.debug("-> siteId={}, groupId={}", siteId, groupId);
-
+			
 			Object lock = newGroupLock.computeIfAbsent(groupId, k -> new Object());
 			synchronized(lock) {
 				MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
@@ -1065,7 +1064,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//group creation process in Sakai is done in two steps: 1) create empty group, 2) set title + update group
 					//hook is launched on creation, so at this point it's possible title is not establish yet... so, we wait a bit
 					try { Thread.sleep(1000); } catch (InterruptedException e) {}
-
+					
 					Site site = sakaiProxy.getSite(siteId);
 					if(site != null) {
 						Group group = site.getGroup(groupId);
@@ -1074,7 +1073,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							if(group.getTitle().startsWith("Access:")) {
 								return;
 							}
-
+							
 							//get all synchronizations linked to this site
 							List<SiteSynchronization> list = microsoftSiteSynchronizationRepository.findBySite(siteId);
 							if(list != null) {
@@ -1089,10 +1088,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 												.groupId(groupId)
 												.channelId(channelId)
 												.build();
-
+						
 										log.debug("saving NEW group-channel: siteId={}, groupId={}, channelId={}", siteId, groupId, channelId);
 										saveOrUpdateGroupSynchronization(gs);
-
+										
 										//save log
 										microsoftLoggingRepository.save(MicrosoftLog.builder()
 												.event(MicrosoftLog.EVENT_CHANNEL_CREATED)
@@ -1122,7 +1121,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			}
 		}
 	}
-
+	
 	//element removed (Site or Group)
 	private void elementDeleted(MicrosoftMessage msg) {
 		try {
@@ -1149,7 +1148,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftLoggingRepository.save(builder.build());
 		}
 	}
-
+	
 	private void siteDeleted(String siteId) throws MicrosoftGenericException {
 		if(microsoftConfigRepository.isAllowedDeleteSynch()) {
 			//get all synchronizations linked to this site
@@ -1158,6 +1157,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			for(SiteSynchronization ss : list) {
 				//remove synch
 				microsoftSiteSynchronizationRepository.delete(ss.getId());;
+			
 				if(microsoftConfigRepository.isAllowedDeleteTeam()) {
 					//check if Team is no longer related to any other site
 					if(microsoftSiteSynchronizationRepository.countSiteSynchronizationsByTeamId(ss.getTeamId(), false) == 0) {
@@ -1166,7 +1166,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					}
 				}
 			}
-
+			
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 					.event(MicrosoftLog.EVENT_SITE_DELETED)
@@ -1175,7 +1175,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					.build());
 		}
 	}
-
+	
 	private void groupDeleted(String siteId, String groupId) throws MicrosoftGenericException{
 		if(microsoftConfigRepository.isAllowedDeleteChannel()) {
 			//get all synchronizations linked to this channel
@@ -1190,7 +1190,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					microsoftCommonService.deleteChannel(gs.getSiteSynchronization().getTeamId(), gs.getChannelId());
 				}
 			}
-
+			
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 					.event(MicrosoftLog.EVENT_GROUP_DELETED)
@@ -1200,7 +1200,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					.build());
 		}
 	}
-
+	
 	//element modified (at this moment, only Unpublished Sites)
 	private void elementModified(MicrosoftMessage msg) {
 		try {
@@ -1221,7 +1221,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftLoggingRepository.save(builder.build());
 		}
 	}
-
+	
 	//new site created
 	private void siteUnpublished(String siteId) throws MicrosoftGenericException {
 		if(microsoftConfigRepository.isAllowedRemoveUsersWhenUnpublish()) {
@@ -1232,7 +1232,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				//site unpublish process in Sakai is done in two steps: 1) set unpublished, 2) save site
 				//hook is launched when property is set, so at this point it's possible the value is not stored yet... so, we wait a bit
 				try { Thread.sleep(1000); } catch (InterruptedException e) {}
-
+				
 				Site site = sakaiProxy.getSite(siteId);
 				if(site != null && !site.isPublished()) {
 					end = true;
@@ -1245,10 +1245,10 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						}
 					}
 				}
-
+				
 				count--;
 			}
-
+			
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_SITE_UNPUBLISHED)
@@ -1257,7 +1257,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				.build());
 		}
 	}
-
+	
 	//User added to Site or Group
 	private void userAddedToAuthzGroup(MicrosoftMessage msg) {
 		try {
@@ -1289,28 +1289,28 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftLoggingRepository.save(builder.build());
 		}
 	}
-
+	
 	//User added to Site
 	private void userAddedToSite(String userId, String siteId, boolean owner) throws MicrosoftGenericException{
 		if(microsoftConfigRepository.isAllowedAddUserToTeam()) {
 			log.debug("-> userId={}, siteId={}, owner={}", userId, siteId, owner);
-
+			
 			//check if Microsoft Credentials are valid (will throw an exception if not)
 			microsoftCommonService.checkConnection();
-
+			
 			User user = sakaiProxy.getUser(userId);
-
+			
 			//get all synchronizations linked to this site
 			List<SiteSynchronization> list = microsoftSiteSynchronizationRepository.findBySite(siteId);
 			if(list != null) {
 				SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 				MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
-
+				
 				//get user identifier
 				String identifier = sakaiProxy.getMemberKeyValue(user, mappedSakaiUserId);
-
+				
 				MicrosoftUser mu = null;
-
+				
 				for(SiteSynchronization ss : list) {
 					boolean res = false;
 					//check if team exists
@@ -1322,7 +1322,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							user = sakaiProxy.getUser(userId);
 							//get identifier for future iterations
 							identifier = sakaiProxy.getMemberKeyValue(user, mappedSakaiUserId);
-
+							
 							if(mu != null) {
 								//guest users always as members (not owners)
 								res = addMemberToMicrosoftGroupOrTeam(ss, mu);
@@ -1333,7 +1333,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							if(mu == null) {
 								//Getting Microsoft User with identifier
 								mu = microsoftCommonService.getUser(identifier, mappedMicrosoftUserId);
-
+								
 								//user does not exist -> create invitation
 								if(mu == null) {
 									mu = createInvitation(ss, user, mappedSakaiUserId, mappedMicrosoftUserId);
@@ -1344,7 +1344,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							}
 						}
 					}
-
+					
 					//save log
 					microsoftLoggingRepository.save(MicrosoftLog.builder()
 							.event(MicrosoftLog.EVENT_USER_ADDED_TO_SITE)
@@ -1363,33 +1363,33 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.debug("NOT allowed to add user to team");
 		}
 	}
-
+	
 	//User added to Group
 	private void userAddedToGroup(String userId, String siteId, String groupId, boolean owner) throws MicrosoftGenericException{
 		if(microsoftConfigRepository.isAllowedAddUserToChannel()) {
 			Object lock = newGroupLock.computeIfAbsent(groupId, k -> new Object());
 			synchronized(lock) {
 				log.debug("-> userId={}, siteId={}, groupId={}, owner={}", userId, siteId, groupId, owner);
-
+				
 				//check if Microsoft Credentials are valid (will throw an exception if not)
 				microsoftCommonService.checkConnection();
-
+				
 				User user = sakaiProxy.getUser(userId);
-
+				
 				//get all synchronizations linked to this group
 				List<GroupSynchronization> list = microsoftGroupSynchronizationRepository.findByGroup(groupId);
 				if(list != null) {
 					SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 					MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
-
+					
 					//get user identifier
 					String identifier = sakaiProxy.getMemberKeyValue(user, mappedSakaiUserId);
-
+					
 					MicrosoftUser mu = null;
-
+					
 					for(GroupSynchronization gs : list) {
 						SiteSynchronization ss = gs.getSiteSynchronization();
-
+	
 						boolean res = false;
 						//check if channel exists
 						//check if user does not pertain to that channel
@@ -1404,7 +1404,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 								res = (owner) ? addOwnerToMicrosoftChannel(ss, gs, mu) : addMemberToMicrosoftChannel(ss, gs, mu);
 							}
 						}
-
+						
 						//save log
 						microsoftLoggingRepository.save(MicrosoftLog.builder()
 								.event(MicrosoftLog.EVENT_USER_ADDED_TO_GROUP)
@@ -1427,7 +1427,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.debug("NOT allowed to add user to channel");
 		}
 	}
-
+	
 	//User removed from Site or Group
 	private void userRemovedFromAuthzGroup(MicrosoftMessage msg) {
 		try {
@@ -1469,45 +1469,45 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			microsoftLoggingRepository.save(builder.build());
 		}
 	}
-
+	
 	//User removed from Site
 	private void userRemovedFromSite(String userId, String siteId) throws MicrosoftGenericException{
 		if(microsoftConfigRepository.isAllowedRemoveUserFromTeam()) {
 			log.debug("-> userId={}, siteId={}", userId, siteId);
-
+			
 			//check if Microsoft Credentials are valid (will throw an exception if not)
 			microsoftCommonService.checkConnection();
-
+			
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
-
+			
 			User user = sakaiProxy.getUser(userId);
-
+			
 			//get all synchronizations linked to this site
 			List<SiteSynchronization> list = microsoftSiteSynchronizationRepository.findBySite(siteId);
 			if(list != null) {
 				SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 				MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
-
+				
 				//get user identifier
 				String identifier = sakaiProxy.getMemberKeyValue(user, mappedSakaiUserId);
-
+				 
 				for(SiteSynchronization ss : list) {
 					//only forced relationships will remove users from Microsoft
 					if(ss.isForced()) {
 						boolean res = false;
 						MicrosoftUser mu = null;
-
+						
 						//check if team exists
 						if(checkTeam(ss.getTeamId())) {
 							//check if user pertains to that team
 							mu = microsoftCommonService.checkUserInTeam(identifier, ss.getTeamId(), mappedMicrosoftUserId);
-
+							
 							//check if user to remove is microsoft "admin"
 							if(mu != null && !credentials.getEmail().equalsIgnoreCase(mu.getEmail())) {
 								res = removeMemberFromMicrosoftTeam(ss, mu);
 							}
 						}
-
+						
 						//save log
 						microsoftLoggingRepository.save(MicrosoftLog.builder()
 								.event(MicrosoftLog.EVENT_USER_REMOVED_FROM_SITE)
@@ -1520,7 +1520,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 								.addData("owner", (mu != null) ? Boolean.toString(mu.isOwner()) : "-null-")
 								.addData("guest", (mu != null) ? Boolean.toString(mu.isGuest()) : "-null-")
 								.build());
-
+						
 					}
 				}
 			}
@@ -1528,46 +1528,46 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.debug("NOT allowed to remove user from team");
 		}
 	}
-
+	
 	//User removed from Group
 	private void userRemovedFromGroup(String userId, String siteId, String groupId) throws MicrosoftGenericException{
 		if(microsoftConfigRepository.isAllowedRemoveUserFromChannel()) {
 			log.debug("-> userId={}, siteId={}, groupId={}", userId, siteId, groupId);
-
+			
 			//check if Microsoft Credentials are valid (will throw an exception if not)
 			microsoftCommonService.checkConnection();
-
+			
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
-
+			
 			User user = sakaiProxy.getUser(userId);
-
+			
 			//get all synchronizations linked to this group
 			List<GroupSynchronization> list = microsoftGroupSynchronizationRepository.findByGroup(groupId);
 			if(list != null) {
 				SakaiUserIdentifier mappedSakaiUserId = microsoftConfigRepository.getMappedSakaiUserId();
 				MicrosoftUserIdentifier mappedMicrosoftUserId = microsoftConfigRepository.getMappedMicrosoftUserId();
-
+				
 				//get user identifier
 				String identifier = sakaiProxy.getMemberKeyValue(user, mappedSakaiUserId);
-
+				
 				for(GroupSynchronization gs : list) {
 					SiteSynchronization ss = gs.getSiteSynchronization();
 					//only forced relationships will remove users from Microsoft
 					if(ss.isForced()) {
 						boolean res = false;
 						MicrosoftUser mu = null;
-
+						
 						//check if channel exists
 						if(checkChannel(ss.getTeamId(), gs.getChannelId())) {
 							//check if user pertains to that channel
 							mu = microsoftCommonService.checkUserInChannel(identifier, ss.getTeamId(), gs.getChannelId(), mappedMicrosoftUserId);
-
+							
 							//check if user to remove is microsoft "admin"
 							if(mu != null && !credentials.getEmail().equalsIgnoreCase(mu.getEmail())) {
 								res = removeMemberFromMicrosoftChannel(ss, gs, mu);
 							}
 						}
-
+						
 						//save log
 						microsoftLoggingRepository.save(MicrosoftLog.builder()
 								.event(MicrosoftLog.EVENT_USER_REMOVED_FROM_GROUP)
@@ -1589,13 +1589,13 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			log.debug("NOT allowed to remove user from channel");
 		}
 	}
-
+	
 	//All users removed from group
 	//TODO: support this. At this point, this only can be called from webservices, not form GUI.
 	private void allUsersRemovedFromGroup(String siteId, String groupId) throws MicrosoftGenericException{
 		log.warn("(NOT SUPPORTED YET) allUsersRemovedFromGroup: siteId="+siteId+", groupId="+groupId);
 	}
-
+	
 	//Team creation process has finish (send by MicrosoftCommonService::createTeamFromGroupAsync)
 	private void teamCreated(MicrosoftMessage msg) {
 		if(msg.getType() == MicrosoftMessage.Type.TEAM && msg.getAction() == MicrosoftMessage.Action.CREATE) {
@@ -1616,7 +1616,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				default:
 					return;
 			}
-
+			
 			//save log
 			microsoftLoggingRepository.save(MicrosoftLog.builder()
 					.event(MicrosoftLog.EVENT_CREATE_TEAM_FROM_GROUP)

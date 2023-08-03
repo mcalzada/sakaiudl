@@ -24,12 +24,12 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 	public Session getCurrentSession() {
 		return sessionFactory.getCurrentSession();
 	}
-
+	
 	public Optional<MicrosoftConfigItem> getConfigItemByKey(String key){
 		MicrosoftConfigItem ret = (MicrosoftConfigItem)startCriteriaQuery().add(Restrictions.eq("key", key)).uniqueResult();
 		return Optional.ofNullable(ret);
 	}
-
+	
 	public String getConfigItemValueByKey(String key){
 		MicrosoftConfigItem ret = (MicrosoftConfigItem)startCriteriaQuery().add(Restrictions.eq("key", key)).uniqueResult();
 		if(ret != null) {
@@ -37,7 +37,7 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 		}
 		return null;
 	}
-
+	
 	//------------------------------ CREDENTIALS -------------------------------------------------------
 	public MicrosoftCredentials getCredentials() {
 		return MicrosoftCredentials.builder()
@@ -49,16 +49,16 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 			.email(getConfigItemValueByKey(MicrosoftCredentials.KEY_EMAIL))
 		.build();
 	}
-
+	
 	//------------------------------- SAKAI - MICROSOFT USER MAPPING ------------------------------------
 	public SakaiUserIdentifier getMappedSakaiUserId() {
 		return SakaiUserIdentifier.fromString(getConfigItemValueByKey(SakaiUserIdentifier.KEY));
 	}
-
+	
 	public MicrosoftUserIdentifier getMappedMicrosoftUserId() {
 		return MicrosoftUserIdentifier.fromString(getConfigItemValueByKey(MicrosoftUserIdentifier.KEY));
 	}
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION ------------------------------------
 	public Map<String, MicrosoftConfigItem> getDefaultSynchronizationConfigItems() {
 		List<String> valid_keys = Arrays.asList(
@@ -71,6 +71,7 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 				ADD_USER_TO_CHANNEL,
 				REMOVE_USER_FROM_TEAM,
 				REMOVE_USER_FROM_CHANNEL,
+				REMOVE_USERS_WHEN_UNPUBLISH,
 				CREATE_INVITATION
 		);
 		return IntStream.range(0, valid_keys.size())
@@ -83,16 +84,16 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 						.build();
 			}).collect(Collectors.toMap(MicrosoftConfigItem::getKey, Function.identity()));
 	}
-
+	
 	public Map<String, MicrosoftConfigItem> getAllSynchronizationConfigItems() {
 		Map<String, MicrosoftConfigItem> map = getDefaultSynchronizationConfigItems();
-
+		
 		List<MicrosoftConfigItem> list = (List<MicrosoftConfigItem>)startCriteriaQuery().add(Restrictions.like("key", PREFIX_SYNCH, MatchMode.START)).list();
 		list.stream().forEach(item -> map.get(item.getKey()).setValue(item.getValue()));
-
+		
 		return map;
 	}
-
+	
 	public Boolean isAllowedCreateTeam() {
 		return Boolean.valueOf(getConfigItemValueByKey(CREATE_TEAM));
 	}
@@ -126,16 +127,16 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 	public Boolean isAllowedCreateInvitation() {
 		return Boolean.valueOf(getConfigItemValueByKey(CREATE_INVITATION));
 	}
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - NEW SITE ------------------------------------
 	public SakaiSiteFilter getNewSiteFilter() {
 		SakaiSiteFilter ret = new SakaiSiteFilter();
-				ret.setSiteType(getConfigItemValueByKey(NEW_SITE_TYPE));
+		ret.setSiteType(getConfigItemValueByKey(NEW_SITE_TYPE));
 		ret.setPublished(Boolean.valueOf(getConfigItemValueByKey(NEW_SITE_PUBLISHED)));
 		ret.setSiteProperty(getConfigItemValueByKey(NEW_SITE_PROPERTY));
 		return ret;
 	}
-
+	
 	public long getSyncDuration() {
 		try {
 			return Long.valueOf(getConfigItemValueByKey(MicrosoftConfigRepository.NEW_SITE_SYNC_DURATION));
@@ -144,7 +145,7 @@ public class MicrosoftConfigRepositoryImpl extends BasicSerializableRepository<M
 			return 12;
 		}
 	}
-
+	
 	//------------------------------- MICROSOFT SYNCHRONIZATION - JOB ------------------------------------
 	public SakaiSiteFilter getJobSiteFilter() {
 		SakaiSiteFilter ret = new SakaiSiteFilter();
