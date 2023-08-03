@@ -49,7 +49,7 @@ public class ThymeleafConfig implements WebMvcConfigurer, ApplicationContextAwar
 	public void setApplicationContext(ApplicationContext applicationContext) {
 		this.applicationContext = applicationContext;
 	}
-
+	
 	@Override
 	public void addResourceHandlers(final ResourceHandlerRegistry registry) {
 		registry.addResourceHandler("/js/**").addResourceLocations("/js/");
