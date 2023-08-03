@@ -46,15 +46,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Controller
 public class ConfigController {
-
+	
 	private static ResourceLoader rb = new ResourceLoader("Messages");
-
+	
 	@Autowired
 	private MicrosoftConfigurationService microsoftConfigurationService;
-
+	
 	private static final String REDIRECT_INDEX = "redirect:/index";
 	private static final String CONFIG_TEMPLATE = "config";
-
+	
 	@GetMapping(value = {"/config"})
 	public String showConfig(Model model) throws Exception {
 		List<MicrosoftConfigItem> synchConfigItems = new ArrayList<>(microsoftConfigurationService.getAllSynchronizationConfigItems().values());
@@ -63,30 +63,35 @@ public class ConfigController {
 		Collections.sort(synchConfigItems, (i1, i2) -> i1.getIndex().compareTo(i2.getIndex()));
 		model.addAttribute("synch_config_items", synchConfigItems);
 		model.addAttribute("siteFilter", microsoftConfigurationService.getNewSiteFilter());
+		model.addAttribute("syncDuration", microsoftConfigurationService.getSyncDuration());
+		model.addAttribute("jobSiteFilter", microsoftConfigurationService.getJobSiteFilter());
 
 		model.addAttribute("onedriveEnabled", microsoftConfigurationService.isOneDriveEnabled());
 
 		model.addAttribute("maxUploadSize", microsoftConfigurationService.getMaxUploadSize());
-
+		
 		model.addAttribute("mapped_sakai_user_id", microsoftConfigurationService.getMappedSakaiUserId());
 		model.addAttribute("mapped_microsoft_user_id", microsoftConfigurationService.getMappedMicrosoftUserId());
-
+		
 		return CONFIG_TEMPLATE;
 	}
-
+	
 	@PostMapping(path = {"/save-config"}, consumes = {MediaType.APPLICATION_FORM_URLENCODED_VALUE})
 	public String saveConfig(@ModelAttribute ConfigRequest payload, Model model) {
 		Map<String, MicrosoftConfigItem> default_items = microsoftConfigurationService.getDefaultSynchronizationConfigItems();
 		payload.getSynch_config_items().stream().forEach(item -> default_items.get(item).setValue(Boolean.TRUE.toString()));
 		microsoftConfigurationService.saveConfigItems(new ArrayList<MicrosoftConfigItem>(default_items.values()));
-
+		microsoftConfigurationService.saveNewSiteFilter(payload.getSiteFilter());
+		microsoftConfigurationService.saveSyncDuration(payload.getSyncDuration());
+		
+		microsoftConfigurationService.saveJobSiteFilter(payload.getJobSiteFilter());
+		
 		microsoftConfigurationService.saveOrUpdateConfigItem(MicrosoftConfigItem.builder().key(MicrosoftConfigRepository.ONEDRIVE_ENABLED).value(Boolean.toString(payload.isOnedriveEnabled())).build());
 
 		microsoftConfigurationService.saveOrUpdateConfigItem(MicrosoftConfigItem.builder().key(MicrosoftConfigRepository.MAX_UPLOAD_SIZE).value(Long.toString(payload.getMaxUploadSize())).build());
-
+		
 		microsoftConfigurationService.saveMappedSakaiUserId(payload.getMapped_sakai_user_id());
 		microsoftConfigurationService.saveMappedMicrosoftUserId(payload.getMapped_microsoft_user_id());
-		microsoftConfigurationService.saveNewSiteFilter(payload.getSiteFilter());
 		return REDIRECT_INDEX;
 	}
 }
