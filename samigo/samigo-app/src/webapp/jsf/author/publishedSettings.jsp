@@ -487,7 +487,7 @@
           </h:selectOneRadio>
         </div>
       </h:panelGroup>
-      <h:panelGroup styleClass="form-group row" layout="block">
+      <h:panelGroup rendered="#{publishedSettings.sebConfigMode == 'UPLOAD'}" styleClass="form-group row" layout="block">
         <label for="sebConfigUpload" class="col-md-2 form-control-label">
           <h:outputText value="#{assessmentSettingsMessages.seb_config_upload}" />
         </label>
@@ -495,6 +495,12 @@
           <h:outputLink id="sebConfigUploadLink" rendered="#{publishedSettings.sebConfigFileName != null}" value="/access/content#{publishedSettings.sebConfigUploadId}" target="new_window">
             <h:outputText value="#{publishedSettings.sebConfigFileName}" />
           </h:outputLink>
+        </div>
+      </h:panelGroup>
+      <h:panelGroup styleClass="form-group row" layout="block">
+        <h:outputLabel for="sebConfigKey" value="#{assessmentSettingsMessages.seb_config_key}" styleClass="col-md-2 form-control-label"/>
+        <div class="col-md-10">
+          <h:inputText id="sebConfigKey" styleClass="form-control" value="#{publishedSettings.sebConfigKey}" />
         </div>
       </h:panelGroup>
       <h:panelGroup styleClass="form-group row" layout="block">

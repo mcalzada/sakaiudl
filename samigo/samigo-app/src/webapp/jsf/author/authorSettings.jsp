@@ -409,10 +409,10 @@
             <h:outputText value="#{assessmentSettingsMessages.seb_config_mode_manual_help}" />
           </label>
           <label class="help-block info-text small config-mode-help-upload">
-            <h:outputText value="#{assessmentSettingsMessages.seb_config_mode_upload_help}" />
+            <h:outputText value="#{assessmentSettingsMessages.seb_config_mode_upload_help} #{assessmentSettingsMessages.seb_exam_keys_recommended}" />
           </label>
           <label class="help-block info-text small config-mode-help-client">
-            <h:outputText value="#{assessmentSettingsMessages.seb_config_mode_client_help}" />
+            <h:outputText value="#{assessmentSettingsMessages.seb_config_mode_client_help} #{assessmentSettingsMessages.seb_exam_keys_recommended}" />
           </label>
         </div>
       </h:panelGroup>
@@ -496,6 +496,15 @@
           <div class="sak-banner-error hidden">
             <h:outputText value="#{assessmentSettingsMessages.seb_config_upload_error}" />
           </div>
+        </div>
+      </h:panelGroup>
+      <h:panelGroup styleClass="form-group row" layout="block">
+        <h:outputLabel for="sebConfigKey" value="#{assessmentSettingsMessages.seb_config_key}" styleClass="col-md-2 form-control-label"/>
+        <div class="col-md-10">
+          <h:inputText id="sebConfigKey" styleClass="form-control" value="" disabled="true" />
+          <label class="help-block info-text small">
+            <h:outputText value="#{assessmentSettingsMessages.seb_config_key_info}" />
+          </label>
         </div>
       </h:panelGroup>
       <h:panelGroup styleClass="form-group row" layout="block">
@@ -963,6 +972,7 @@
  <!-- save & publish -->
   <h:commandButton  value="#{assessmentSettingsMessages.button_unique_save_and_publish}" type="submit" styleClass="active" rendered="#{assessmentSettings.hasQuestions}"
       action="#{assessmentSettings.getOutcomePublish}" onclick="setBlockDivs();updateItemNavigation(false);SPNR.disableControlsAndSpin(this, null);" >
+      <f:param name="fromAssessmentSettings" value="true" />
       <f:actionListener type="org.sakaiproject.tool.assessment.ui.listener.author.ConfirmPublishAssessmentListener" />
       <f:actionListener type="org.sakaiproject.tool.assessment.ui.listener.author.PublishAssessmentListener" />
   </h:commandButton>
