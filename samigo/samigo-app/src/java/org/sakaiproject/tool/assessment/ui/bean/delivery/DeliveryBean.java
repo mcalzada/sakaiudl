@@ -1561,7 +1561,6 @@ public class DeliveryBean implements Serializable {
   }
 
   public boolean isSebActive() {
-    log.info("assessmentId {}", assessmentId);
     SecureDeliveryServiceAPI secureDelivery = SamigoApiFactory.getInstance().getSecureDeliveryServiceAPI();
     return secureDelivery.isSecureDeliveryAvaliable(Long.valueOf(assessmentId))
         && StringUtils.equals(SecureDeliverySeb.MODULE_NAME, publishedAssessment.getAssessmentMetaDataByLabel(SecureDeliveryServiceAPI.MODULE_KEY));
@@ -2186,6 +2185,8 @@ public class DeliveryBean implements Serializable {
         validateSecureDeliveryPhase(Phase.ASSESSMENT_START);
 
         if (PhaseStatus.FAILURE.equals(secureDeliveryStatus)) {
+          // For SEB, we expect the first validation to fail, because no validation data is provided yet
+          // Also, we need to set sebSetup. With sebSetup the beginDelivery page will refresh once the validation data is sent
           if(StringUtils.equals(secureDeliveryModuleId, SecureDeliverySeb.MODULE_NAME)) {
             setSebSetup(true);
           } else {
