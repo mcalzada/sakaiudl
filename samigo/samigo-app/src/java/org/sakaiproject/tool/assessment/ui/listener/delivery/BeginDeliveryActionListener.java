@@ -198,6 +198,7 @@ public class BeginDeliveryActionListener implements ActionListener
         delivery.setSebSetup(true);
         delivery.setSecureDeliveryHTMLFragment(secureDelivery.getHTMLFragment(secureDeliveryModuleId, pub,
             null, Phase.ASSESSMENT_START, PhaseStatus.FAILURE, null));
+        return;
       } else {
         delivery.setSebSetup(false);
       }
