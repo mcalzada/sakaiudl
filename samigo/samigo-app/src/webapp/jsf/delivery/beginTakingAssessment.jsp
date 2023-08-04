@@ -228,7 +228,7 @@
 	
 </h:panelGrid>
 	
-<h:panelGrid columns="2" border="0">
+<h:panelGrid rendered="#{!delivery.sebSetup}" columns="2" border="0">
     <h:outputText value=" "/>
     <h:outputText value=" "/>
 
@@ -331,8 +331,10 @@
 
   </h:panelGroup>
 
-  <h:commandButton id="restViewHidden" styleClass="hidden" value="begin" action="#{delivery.getActionString}" type="submit" rendered="#{delivery.sebSetup}">
-    <f:actionListener type="org.sakaiproject.tool.assessment.ui.listener.delivery.DeliveryActionListener" />
+  <h:commandButton id="resetViewHidden" styleClass="hidden" value="begin" action="takeAssessmentViaUrl" type="submit"
+      rendered="#{delivery.sebSetup && delivery.actionString == 'takeAssessmentViaUrl'}" immediate="true">
+    <f:actionListener type="org.sakaiproject.tool.assessment.ui.listener.delivery.SebSetupActionListener" />
+    <f:param name="sebSetup" value="false" />
   </h:commandButton>
 
 <!-- CANCEL BUTTON -->

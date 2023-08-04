@@ -4,7 +4,7 @@ const siteId = "IS_NOT_NEEDED";
 const formId = "takeAssessmentForm";
 // Replacing http: to seb: and https: to sebs:
 const sebProtocol = window.location.protocol.replace('http','seb');
-const startButtonId = formId + ":restViewHidden";
+const startButtonId = formId + ":resetViewHidden";
 const launchSebLinkId = "sebLaunchSeb";
 const downloadSebLink = seb.downloadLink;
 const downloadSebLinkId = "sebDownloadSeb";
@@ -128,7 +128,6 @@ if (sebApi) {
 
     // Check if this is the sebSetup view, hide it and display loading bar
     domLoadedPromise.then(() => {
-        console.log("Loaded 1")
         if (isStartView()) {
             hideStartView();
             showLoadingMessage(loadingMessage);
