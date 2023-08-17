@@ -303,7 +303,6 @@ function initSecureDeliverySettings(isPublishedSettingsPage) {
                 formElements.secureDeliveryModuleExitPassword.hide();
                 break;
             default:
-                formElements.secureDeliveryModuleExitPassword.show();
                 break;
         }
     }
