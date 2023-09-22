@@ -12,6 +12,29 @@ TODO Master merge: Remove this file
 }
 
 .b5 {
+  &.ratio {
+    position: relative;
+    width: 100%;
+
+    & > * {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    &::before {
+      display: block;
+      padding-top: var(--bs-aspect-ratio);
+      content: "";
+    }
+  }
+
+  &.ratio-1x1 {
+    --bs-aspect-ratio: 100%;
+  }
+
   &.d-flex {
     display: flex !important;
   }
@@ -55,6 +78,26 @@ TODO Master merge: Remove this file
 
   &.mb-2 {
     margin-bottom: $standard-spacing * 0.5 !important;
+  }
+
+  &.ms-1 {
+    margin-left: $standard-spacing * 0.25 !important;
+  }
+
+  &.ms-2 {
+    margin-left: $standard-spacing * 0.5 !important;
+  }
+
+  &.ms-3 {
+    margin-left: $standard-spacing !important;
+  }
+
+  &.ms-4 {
+    margin-left: $standard-spacing * 1.5 !important;
+  }
+
+  &.ms-5 {
+    margin-left: $standard-spacing * 3 !important;
   }
 
   &.my-1 {
