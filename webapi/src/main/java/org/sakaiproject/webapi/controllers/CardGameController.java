@@ -30,6 +30,7 @@ import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.util.comparator.UserSortNameComparator;
 import org.sakaiproject.webapi.beans.CardGameUserRestBean;
+import org.sakaiproject.webapi.beans.SimpleGroup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -41,8 +42,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.sakaiproject.api.privacy.PrivacyManager;
+
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,7 +65,7 @@ public class CardGameController extends AbstractSakaiApiController {
     private static final int MIN_ATTEMPTS_DEFAULT = 5;
     private static final double MIN_HIT_RATIO_DEFAULT = 0.5;
     private static final boolean SHOW_OFFICIAL_PHOTO_DEFAULT = true;
-    private static final boolean SKIP_NO_IMAGE_USERS_DEFAULT = false;
+    private static final boolean SKIP_NO_IMAGE_USERS_DEFAULT = true;
     private static final String[] ALLOWED_ROLE_IDS_DEFAULT = new String[] { "access", "Student" };
     private static final String ROSTER_PERM_VIEW_HIDDEN = "roster.viewhidden";
     private static final String ROSTER_PERM_VIEW_ALL_MEMBERS = "roster.viewallmembers";
@@ -141,6 +144,14 @@ public class CardGameController extends AbstractSakaiApiController {
         return visibleUsers.stream()
                 .map(user -> CardGameUserRestBean.of(user, statItems.get(user.getId())))
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping(value = "/sites/{siteId}/card-game/groups", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Set<SimpleGroup>> getGroups(@PathVariable String siteId) {
+        String userId = checkSakaiSession().getUserId();
+        Site site = checkSite(siteId);
+
+        return ResponseEntity.ok(getFilteredUserGroups(site, userId));
     }
 
     @PutMapping(value = "/sites/{siteId}/card-game/users/{userId}/checkResult", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -242,6 +253,77 @@ public class CardGameController extends AbstractSakaiApiController {
         }
 
         return userIds;
+    }
+
+    private Set<SimpleGroup> getFilteredUserGroups(Site site, String userId) {
+        Set<SimpleGroup> visibleGroups = new HashSet<>();
+        if (securityService.unlock(userId, ROSTER_PERM_VIEW_ALL_MEMBERS, site.getReference())) {
+            // Get all site groups
+            boolean canViewHiddenUsers = securityService.unlock(userId, ROSTER_PERM_VIEW_HIDDEN, site.getReference());
+
+            for (Group group : site.getGroups()) {
+                SimpleGroup simpleGroup = new SimpleGroup(group);
+
+                // Remove hidden users if user has no permission to see them (site context)
+                if (!canViewHiddenUsers) {
+                    Set<String> hiddenUsersIds = privacyManager.findHidden(site.getReference(), simpleGroup.users);
+                    simpleGroup.users.removeAll(hiddenUsersIds);
+                }
+
+                // Only add groups that (still) have users
+                if (!simpleGroup.users.isEmpty()) {
+                    visibleGroups.add(simpleGroup);
+                }
+            }
+        } else {
+            // Get only site groups that the user is a member of
+            Set<Group> userGroups = site.getGroups().stream()
+                    .filter(group -> group.getMember(userId) != null)
+                    .collect(Collectors.toSet());
+
+            for (Group group : userGroups) {
+                SimpleGroup simpleGroup = new SimpleGroup(group);
+
+                // Remove hidden users if user has no permission to see them (group context)
+                if (!securityService.unlock(userId, ROSTER_PERM_VIEW_HIDDEN, group.getReference())) {
+                    Set<String> hiddenUsersIds = privacyManager.findHidden(site.getReference(), simpleGroup.users);
+                    simpleGroup.users.removeAll(hiddenUsersIds);
+                }
+
+                // Only add groups that (still) have users
+                if (!simpleGroup.users.isEmpty()) {
+                    visibleGroups.add(simpleGroup);
+                }
+            }
+        }
+
+        // Remove users without profile image if applicable
+        if (skipNoImageUsers) {
+            Set<SimpleGroup> emptyGroups = new HashSet<>();
+
+            for (SimpleGroup simpleGroup : visibleGroups) {
+                Set<String> userIdsToRemove = new HashSet<>();
+
+                for (String groupUserId : simpleGroup.users) {
+                    if (hasDefaultImage(groupUserId, site.getId(), showOfficialPhoto)) {
+                        userIdsToRemove.add(groupUserId);
+                    }
+                }
+
+                simpleGroup.users.removeAll(userIdsToRemove);
+                if (simpleGroup.users.isEmpty()) {
+                    emptyGroups.add(simpleGroup);
+                }
+            }
+
+            // Remove groups that are now empty
+            visibleGroups.removeAll(emptyGroups);
+        }
+
+        // Filter empty groups and return
+        return visibleGroups.stream()
+                .filter(group -> !group.users.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     private String[] getAllowedRoles() {
