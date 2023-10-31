@@ -34,6 +34,7 @@ import org.sakaiproject.microsoft.api.exceptions.MicrosoftCredentialsException;
 import org.sakaiproject.microsoft.api.exceptions.MicrosoftGenericException;
 import org.sakaiproject.microsoft.api.model.SiteSynchronization;
 import org.sakaiproject.microsoft.controller.auxiliar.AjaxResponse;
+import org.sakaiproject.microsoft.controller.auxiliar.MainSessionBean;
 import org.sakaiproject.site.api.Group;
 import org.sakaiproject.util.ResourceLoader;
 
@@ -75,101 +76,129 @@ public class MainController {
 	
 	@Autowired
 	private SakaiProxy sakaiProxy;
+
+	@Autowired
+	private MainSessionBean mainSessionBean;
 	
 	private static final String INDEX_TEMPLATE = "index";
+	private static final String BODY_TEMPLATE = "body";
 	private static final String REDIRECT_INDEX = "redirect:/index";
 	private static final String ROW_SITE_SYNCH_FRAGMENT = "fragments/synchronizationRow :: siteRow";
 	private static final String LIST_GROUP_SYNCH_FRAGMENT = "fragments/synchronizationRow :: groupRows";
-
-	private static final Integer DEFAULT_PAGE_SIZE = 50;
 	
 	@GetMapping(value = {"/", "/index"})
-	public String index(
-			@RequestParam(defaultValue = "status") String sortBy,
-			@RequestParam(defaultValue = "ASC") String sortOrder,
-			@RequestParam(defaultValue = "0") Integer pageNum,
+	public String index(Model model) {
+
+		return INDEX_TEMPLATE;
+	}
+
+	//called by AJAX - returns FRAGMENT/BODY
+	@GetMapping(value = {"/loadItems"})
+		public String loadItems(
+			@RequestParam(required = false) String sortBy,
+			@RequestParam(required = false) String sortOrder,
+			@RequestParam(required = false) Integer pageNum,
 			@RequestParam(required = false) Integer pageSize,
 			@RequestParam(required = false) String search,
 			Model model
 	)  throws MicrosoftGenericException {		
-		if(pageSize == null || pageSize <= 0) {
-			pageSize = DEFAULT_PAGE_SIZE;
-		}
+				if(sortBy == null) {
+					sortBy = mainSessionBean.getSortBy();
+				}
+				if(sortOrder == null) {
+					sortOrder = mainSessionBean.getSortOrder();
+				}
+				if(pageNum == null) {
+					pageNum = mainSessionBean.getPageNum();
+				}
+				if(pageSize == null) {
+					pageSize = mainSessionBean.getPageSize();
+				}
+				if(search == null) {
+					search = mainSessionBean.getSearch();
+				}
+				mainSessionBean.setSortBy(sortBy);
+				mainSessionBean.setSortOrder(sortOrder);
+				mainSessionBean.setPageNum(pageNum);
+				mainSessionBean.setPageSize(pageSize);
+				mainSessionBean.setSearch(search);
+				
+				List<SiteSynchronization> list = microsoftSynchronizationService.getAllSiteSynchronizations(true);
+				Map<String, MicrosoftTeam> map = microsoftCommonService.getTeams();
 		
-		List<SiteSynchronization> list = microsoftSynchronizationService.getAllSiteSynchronizations(true);
-		Map<String, MicrosoftTeam> map = microsoftCommonService.getTeams();
-		
-		//filter elements
-		if(StringUtils.isNotBlank(search)) {
-			String lcSearch = search.toLowerCase();
-			list = list.stream()
+				//filter elements
+				if(StringUtils.isNotBlank(search)) {
+					String lcSearch = search.toLowerCase();
+					list = list.stream()
 					.filter(ss -> ss.getSiteId().contains(lcSearch) ||
 								  ss.getTeamId().contains(lcSearch) ||
 								  ss.getSite().getTitle().toLowerCase().contains(lcSearch) ||
 								  map.get(ss.getTeamId()).getName().toLowerCase().contains(lcSearch))
 					.collect(Collectors.toList());
-		}
+				}		
 
-		//sort elements
-		if(StringUtils.isNotBlank(sortBy)) {
-			Collections.sort(list, (i1, i2) -> {
-				if("DESC".equals(sortOrder)) {
-					SiteSynchronization aux = i1;
-					i1 = i2;
-					i2 = aux;
-				}
-				switch(sortBy) {
-					case "siteId":
-						return i1.getSiteId().compareTo(i2.getSiteId());
-					case "teamId":
-						return i1.getTeamId().compareTo(i2.getTeamId());
-					case "teamTitle":
-						return map.get(i1.getTeamId()).getName().compareToIgnoreCase(map.get(i2.getTeamId()).getName());
-					case "siteTitle":
-						return i1.getSite().getTitle().compareToIgnoreCase(i2.getSite().getTitle());
-					case "syncDateFrom":
-						return i1.getSyncDateFrom().compareTo(i2.getSyncDateFrom());
-					case "syncDateTo":
-						return i1.getSyncDateTo().compareTo(i2.getSyncDateTo());
-					case "status":
-					default:
-						return i1.getStatus().getCode().compareTo(i2.getStatus().getCode());
+				//sort elements
+				if(StringUtils.isNotBlank(sortBy)) {
+					String finalSortBy = sortBy;
+					String finalSortOrder = sortOrder;
+					Collections.sort(list, (i1, i2) -> {
+						if("DESC".equals(finalSortOrder)) {
+							SiteSynchronization aux = i1;
+							i1 = i2;
+							i2 = aux;
+						}
+						switch(finalSortBy) {
+							case "siteId":
+							return i1.getSiteId().compareTo(i2.getSiteId());
+							case "teamId":
+							return i1.getTeamId().compareTo(i2.getTeamId());
+							case "teamTitle":
+							return map.get(i1.getTeamId()).getName().compareToIgnoreCase(map.get(i2.getTeamId()).getName());
+							case "siteTitle":
+							return i1.getSite().getTitle().compareToIgnoreCase(i2.getSite().getTitle());
+							case "syncDateFrom":
+							return i1.getSyncDateFrom().compareTo(i2.getSyncDateFrom());
+							case "syncDateTo":
+							return i1.getSyncDateTo().compareTo(i2.getSyncDateTo());
+							case "status":
+							default:
+							return i1.getStatus().getCode().compareTo(i2.getStatus().getCode());
 						
-				}
-			});
+						}
+					});
 			
-		}
+				}
 		
-		int totalPages = (list.size() + pageSize - 1) / pageSize;
-		//int totalPages = (list.size() > pageSize) ? (int)Math.ceil((double)list.size()/pageSize) : 0;
-		int maxPage = Math.max(0, totalPages - 1);
-		pageNum = Math.max(0, Math.min(maxPage, pageNum));
+				int totalPages = (list.size() + pageSize - 1) / pageSize;
+				//int totalPages = (list.size() > pageSize) ? (int)Math.ceil((double)list.size()/pageSize) : 0;
+				int maxPage = Math.max(0, totalPages - 1);
+				pageNum = Math.max(0, Math.min(maxPage, pageNum));
 		
-		model.addAttribute("totalElements", list.size());
+				model.addAttribute("totalElements", list.size());
 		
-		//limit number of elements
-		long skipCount = (long)(pageNum * pageSize);
-		list = list.stream()
-			.skip(skipCount)
-			.limit(pageSize)
-			.collect(Collectors.toList());
+				//limit number of elements
+				long skipCount = (long)(pageNum * pageSize);
+				list = list.stream()
+					.skip(skipCount)
+					.limit(pageSize)
+					.collect(Collectors.toList());
 		
-		model.addAttribute("siteSynchronizations", list);
-		model.addAttribute("teamsMap", map);
+				model.addAttribute("siteSynchronizations", list);
+				model.addAttribute("teamsMap", map);
 		
-		model.addAttribute("sortBy", sortBy);
-		model.addAttribute("sortOrder", sortOrder);
-		model.addAttribute("pageSize", pageSize);
-		model.addAttribute("pageNum", pageNum);
-		model.addAttribute("maxPage", maxPage);
-		model.addAttribute("search", search);
+				model.addAttribute("sortBy", sortBy);
+				model.addAttribute("sortOrder", sortOrder);
+				model.addAttribute("pageSize", pageSize);
+				model.addAttribute("pageNum", pageNum);
+				model.addAttribute("maxPage", maxPage);
+				model.addAttribute("search", search);
 
-		return INDEX_TEMPLATE;
-	}
+				return BODY_TEMPLATE;
+		}
 	
 	//called by AJAX
 	@GetMapping(value = {"/listGroupSynchronizations/{siteSynchronizationId}"})
-	public String index(@PathVariable String siteSynchronizationId, Model model)  throws MicrosoftGenericException {
+	public String groupSynchronizations(@PathVariable String siteSynchronizationId, Model model)  throws MicrosoftGenericException {
 		log.debug("List group synchronizations for siteSynchronizationId={}", siteSynchronizationId);
 		SiteSynchronization ss = microsoftSynchronizationService.getSiteSynchronization(SiteSynchronization.builder().id(siteSynchronizationId).build(), true);
 		if(ss != null) {
