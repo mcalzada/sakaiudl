@@ -430,7 +430,7 @@ a.noPointers, input.noPointers {
 	> button,
 	> a,
 	> a[href],
-	< .active {
+	> .active {
 		margin-right: $standard-space;
     margin-top: $standard-space;
 		
