@@ -17,7 +17,7 @@ import org.apache.ignite.configuration.DeploymentMode;
 import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.configuration.TransactionConfiguration;
 import org.apache.ignite.failure.FailureHandler;
-import org.apache.ignite.logger.slf4j.Slf4jLogger;
+import org.apache.ignite.logger.log4j2.Log4J2Logger;
 import org.apache.ignite.plugin.segmentation.SegmentationPolicy;
 import org.apache.ignite.spi.checkpoint.cache.CacheCheckpointSpi;
 import org.apache.ignite.spi.collision.fifoqueue.FifoQueueCollisionSpi;
@@ -118,7 +118,11 @@ public class IgniteConfigurationAdapter extends AbstractFactoryBean<IgniteConfig
 
             igniteConfiguration.setDeploymentMode(DeploymentMode.CONTINUOUS);
 
-            igniteConfiguration.setGridLogger(new Slf4jLogger());
+            try {
+                igniteConfiguration.setGridLogger(new Log4J2Logger(serverConfigurationService.getSakaiHomePath() + "custom-ignite-log4j2.xml"));
+            } catch (Exception e) {
+                log.error("Error trying to set log4j configuration " + e.getMessage());
+            }
 
             configureCaches();
 
