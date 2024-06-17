@@ -168,7 +168,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 	public void init() {
 		LoggerContext context = (LoggerContext) LogManager.getContext(false);
-		context.setConfigLocation(new File(serverConfigurationService.getSakaiHomePath() + "custom-microsoft-log4j2.xml").toURI());
+		context.setConfigLocation(new File(System.getProperty("catalina.home") + "/conf/log4j2.properties").toURI());
 		context.reconfigure();
 
 		// register functions
