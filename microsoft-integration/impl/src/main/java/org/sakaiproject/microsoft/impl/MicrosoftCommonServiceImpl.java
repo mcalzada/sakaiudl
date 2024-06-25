@@ -151,6 +151,10 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	private static final String LINK_TYPE_EDIT = "edit";
 	private static final String LINK_TYPE_VIEW = "view";
 	private static final String LINK_SCOPE_USERS = "users";
+	private static final int TEAM_CHARACTER_LIMIT = 73;// around 80, but leaving some margin because it is not consistent on the Microsoft side
+	private static final int CHANNEL_CHARACTER_LIMIT = 50;// this is an official restriction
+	private static final int UDL_CODE_SIZE = 15;
+	private static final String TEAM_CHARACTER_SEPARATOR = "...";
 
 
 	@Setter private ServerConfigurationService serverConfigurationService;
@@ -529,7 +533,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 		try {
 			LinkedList<String> rolesList = new LinkedList<String>();
 			rolesList.add("owner");
-			
+
+			String truncatedName = name.length() > TEAM_CHARACTER_LIMIT ?
+					name.substring(0, TEAM_CHARACTER_LIMIT - UDL_CODE_SIZE - 3) + TEAM_CHARACTER_SEPARATOR + name.substring(name.length() - UDL_CODE_SIZE, name.length())
+					:
+					name;
+
 			User userOwner = getGraphClient().users(ownerEmail).buildRequest().get();
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
 			conversationMember.oDataType = "#microsoft.graph.aadUserConversationMember";
@@ -544,8 +553,8 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 			ConversationMemberCollectionPage conversationMemberCollectionPage = new ConversationMemberCollectionPage(conversationMemberCollectionResponse, null);
 			
 			Team team = new Team();
-			team.displayName = name;
-			team.description = name;
+			team.displayName = truncatedName;
+			team.description = truncatedName;
 			team.visibility = TeamVisibilityType.PRIVATE;
 			team.members = conversationMemberCollectionPage;
 			team.additionalDataManager().put("template@odata.bind", new JsonPrimitive("https://graph.microsoft.com/v1.0/teamsTemplates('standard')"));
@@ -568,8 +577,8 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						Map<String, MicrosoftTeam> teamsMap = (Map<String, MicrosoftTeam>)cachedValue.get();
 						teamsMap.put(teamId, MicrosoftTeam.builder()
 								.id(teamId)
-								.name(name)
-								.description(name)
+								.name(truncatedName)
+								.description(truncatedName)
 								.build());
 						
 						getCache().put(CACHE_TEAMS, teamsMap);
@@ -1079,10 +1088,12 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	@Override
 	public String createChannel(String teamId, String name, String ownerEmail) throws MicrosoftCredentialsException {
 		try {
+			String truncatedName = name.length() > CHANNEL_CHARACTER_LIMIT ? name.substring(0, CHANNEL_CHARACTER_LIMIT - 1) : name;
+
 			Channel channel = new Channel();
 			channel.membershipType = ChannelMembershipType.PRIVATE;
-			channel.displayName = formatMicrosoftString(name);
-			channel.description = name;
+			channel.displayName = formatMicrosoftString(truncatedName);
+			channel.description = truncatedName;
 			
 			User userOwner = getGraphClient().users(ownerEmail).buildRequest().get();
 			AadUserConversationMember conversationMember = new AadUserConversationMember();
