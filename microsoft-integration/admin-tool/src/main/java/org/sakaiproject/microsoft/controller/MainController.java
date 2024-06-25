@@ -131,8 +131,8 @@ public class MainController {
 					list = list.stream()
 					.filter(ss -> ss.getSiteId().contains(lcSearch) ||
 								  ss.getTeamId().contains(lcSearch) ||
-								  ss.getSite().getTitle().toLowerCase().contains(lcSearch) ||
-								  map.get(ss.getTeamId()).getName().toLowerCase().contains(lcSearch))
+								  (ss.getSite() != null && ss.getSite().getTitle().toLowerCase().contains(lcSearch)) ||
+								  (map.get(ss.getTeamId()) != null && map.get(ss.getTeamId()).getName().toLowerCase().contains(lcSearch)))
 					.collect(Collectors.toList());
 				}		
 
