@@ -777,7 +777,7 @@ public class GradebookNgBusinessService {
 		// save
 		try {
 			//must pass in the raw grade as the service does conversions between percentage etc
-			this.gradebookService.saveGradeAndExcuseForStudent(gradebook.getUid(), assignmentId, studentUuid,
+			this.gradebookService.saveGradeAndExcuseForStudent(gradebookUid, siteId, assignmentId, studentUuid,
 					storedGradeAdjusted, excuse);
 
 			if (rval == null) {
