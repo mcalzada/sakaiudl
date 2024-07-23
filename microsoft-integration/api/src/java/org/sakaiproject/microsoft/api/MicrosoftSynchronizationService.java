@@ -27,7 +27,6 @@ public interface MicrosoftSynchronizationService {
 	
 	// ------------ Site Synchronization ---------------------------
 	List<SiteSynchronization> getAllSiteSynchronizations(boolean fillSite);
-	List<SiteSynchronization> getLinkedSiteSynchronizations(boolean fillSite);
 	SiteSynchronization getSiteSynchronization(SiteSynchronization ss);
 	SiteSynchronization getSiteSynchronization(SiteSynchronization ss, boolean fillSite);
 	

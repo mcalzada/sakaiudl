@@ -18,14 +18,13 @@ package org.sakaiproject.microsoft.impl;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.StringUtils;
 import org.sakaiproject.messaging.api.MicrosoftMessage;
@@ -64,37 +63,24 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
 
-import static org.sakaiproject.microsoft.api.MicrosoftCommonService.MAX_CHANNELS;
-import static org.sakaiproject.microsoft.api.MicrosoftCommonService.errorUsers;
-
 
 @Log4j2
 @Transactional
 public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchronizationService {
 
-    @Setter
-    private MicrosoftCommonService microsoftCommonService;
-    @Setter
-    private MicrosoftConfigRepository microsoftConfigRepository;
-    @Setter
-    private MicrosoftGroupSynchronizationRepository microsoftGroupSynchronizationRepository;
-    @Setter
-    private MicrosoftLoggingRepository microsoftLoggingRepository;
-    @Setter
-    private MicrosoftMessagingService microsoftMessagingService;
-    @Setter
-    private MicrosoftSiteSynchronizationRepository microsoftSiteSynchronizationRepository;
-    @Setter
-    private SakaiProxy sakaiProxy;
-    @Setter
-    private SessionManager sessionManager;
+	@Setter private MicrosoftCommonService microsoftCommonService;
+	@Setter private MicrosoftConfigRepository microsoftConfigRepository;
+	@Setter private MicrosoftGroupSynchronizationRepository microsoftGroupSynchronizationRepository;
+	@Setter private MicrosoftLoggingRepository microsoftLoggingRepository;
+	@Setter private MicrosoftMessagingService microsoftMessagingService;
+	@Setter private MicrosoftSiteSynchronizationRepository microsoftSiteSynchronizationRepository;
+	@Setter private SakaiProxy sakaiProxy;
+	@Setter private SessionManager sessionManager;
 	
 	//used in hooks. Sometimes we need to stop listening some events
 	private Set<String> disabledGroupListeners = ConcurrentHashMap.newKeySet();
 	//used in hooks to synchronize. "add users to group" must happen after "create group" 
 	private ConcurrentHashMap<String, Object> newGroupLock = new ConcurrentHashMap<>();
-
-    //private static final int MAX_CHANNELS = 3;
 
 	public void init() {
 		microsoftMessagingService.listen(MicrosoftMessage.Topic.CREATE_ELEMENT, message -> {
@@ -187,10 +173,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			mt = microsoftCommonService.getTeam(teamId, true);
 			int count = 5;
 			while(mt == null && count > 0) {
-                try {
-                    Thread.sleep(5000);
-                } catch (Exception e) {
-                }
+				try { Thread.sleep(5000); } catch(Exception e) {}
 				mt = microsoftCommonService.getTeam(teamId, true);
 				count--;
 			}
@@ -212,19 +195,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 	}
 	
 	@Override
-    public List<SiteSynchronization> getLinkedSiteSynchronizations(boolean fillSite) {
-        List<SiteSynchronization> result = StreamSupport.stream(microsoftSiteSynchronizationRepository.findDistinctByTeam("").spliterator(), false)
-                .map(ss -> {
-                    if (fillSite) {
-                        ss.setSite(sakaiProxy.getSite(ss.getSiteId()));
-                    }
-                    return ss;
-                })
-                .collect(Collectors.toList());
-        return result;
-    }
-
-    @Override
 	public SiteSynchronization getSiteSynchronization(SiteSynchronization ss) {
 		return getSiteSynchronization(ss, false);
 	}
@@ -494,16 +464,14 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 	@Override
 	public SynchronizationStatus runSiteSynchronization(SiteSynchronization ss) throws MicrosoftGenericException {
 		SynchronizationStatus ret = SynchronizationStatus.ERROR;
-        SakaiMembersCollection filteredSiteMembers = null;
 		log.debug(".................runSiteSynchronization................");
 		if(!ss.onDate()) {
 			log.debug("SS: siteId={}, teamId={} --> OUT OF DATE", ss.getSiteId(), ss.getTeamId());
 			return ret;
 		}
 		
-        List<MicrosoftLog> microsoftLogs = new ArrayList<>();
 		//save log
-        microsoftLogs.add(MicrosoftLog.builder()
+		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_SITE_SYNCRHO_START)
 				.status(MicrosoftLog.Status.OK)
 				.addData("siteId", ss.getSiteId())
@@ -521,8 +489,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			MicrosoftMembersCollection teamMembers = microsoftCommonService.getTeamMembers(ss.getTeamId(), mappedMicrosoftUserId);
 			
 			//get site users that are not in team
-            filteredSiteMembers = siteMembers.diffWith(teamMembers);
-            errorUsers.putAll(filteredSiteMembers.getMembers());
+			SakaiMembersCollection filteredSiteMembers = siteMembers.diffWith(teamMembers);
 			
 			if(log.isDebugEnabled()) {
 				log.debug("diff members...");
@@ -537,10 +504,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				//process all group synchronizations related - only to remove
 				//users will be removed first from channels
 				if(ss.getGroupSynchronizationsList() != null && ss.getGroupSynchronizationsList().size() > 0) {
-                    int groupCounter = 0;
 					for(GroupSynchronization gs : ss.getGroupSynchronizationsList()) {
-                        microsoftCommonService.getTeam(ss.getTeamId());
-                        if (groupCounter < MAX_CHANNELS) {
 						SynchronizationStatus aux_status = runGroupSynchronizationForced(ss, gs, mappedSakaiUserId, mappedMicrosoftUserId);
 						if(aux_status == SynchronizationStatus.ERROR_GUEST && ret != SynchronizationStatus.ERROR) {
 							//once ERROR status is set, do not check it again
@@ -549,16 +513,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						if(aux_status == SynchronizationStatus.ERROR) {
 							ret = SynchronizationStatus.ERROR;
 						}
-                        } else {
-                            //save log
-                            microsoftLoggingRepository.save(MicrosoftLog.builder()
-                                    .event(MicrosoftLog.EVENT_REACH_MAX_CHANNELS)
-                                    .status((ret == SynchronizationStatus.OK) ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                                    .addData("teamId", ss.getTeamId())
-                                    .addData("groups", ss.getSite().getGroups().toString())
-                                    .build());
-                        }
-                        groupCounter++;
 					}
 				}
 				
@@ -584,14 +538,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					if(!res) {
 						ret = SynchronizationStatus.ERROR;
 					}
-
-                    // save log remove member
-                    microsoftLoggingRepository.save(MicrosoftLog.builder()
-                            .event(MicrosoftLog.EVENT_REMOVE_MEMBER)
-                            .status(res ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                            .addData("teamId", ss.getTeamId())
-                            .addData("memberId", mu.getId())
-                            .build());
 				}
 				
 				for(Object o : filteredTeamMembers.getOwners().values()) {
@@ -603,18 +549,9 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						if(!res) {
 							ret = SynchronizationStatus.ERROR;
 						}
-
-                        //save log remove owner
-                        microsoftLoggingRepository.save(MicrosoftLog.builder()
-                                .event(MicrosoftLog.EVENT_REMOVE_OWNER)
-                                .status(res ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                                .addData("teamId", ss.getTeamId())
-                                .addData("ownerId", mu.getId())
-                                .build());
 					}
 				}
 				
-
 				for(MicrosoftUser mu : filteredTeamMembers.getGuests().values()) {
 					//remove from team
 					boolean res = removeMemberFromMicrosoftTeam(ss, mu);
@@ -622,14 +559,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						//once ERROR status is set, do not check it again
 						ret = SynchronizationStatus.ERROR_GUEST;
 					}
-
-                    // save log remove guest
-                    microsoftLoggingRepository.save(MicrosoftLog.builder()
-                            .event(MicrosoftLog.EVENT_REMOVE_GUEST)
-                            .status(res ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                            .addData("teamId", ss.getTeamId())
-                            .addData("guestId", mu.getId())
-                            .build());
 				}
 			}
 			
@@ -652,14 +581,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						//store newly invited user in getsUsers map -> used in group synch in case this user do not appear yet in Microsoft registers
 						id = sakaiProxy.getMemberKeyValue(sakaiProxy.getUser(u.getId()), mappedSakaiUserId);
 						guestUsers.put(id, mu);
-
-                        // save log invitation created
-                        microsoftLoggingRepository.save(MicrosoftLog.builder()
-                                .event(MicrosoftLog.EVENT_INVITATION_CREATED)
-                                .status(MicrosoftLog.Status.OK)
-                                .addData("teamId", ss.getTeamId())
-                                .addData("userId", u.getId())
-                                .build());
 					}
 				}
 				if(mu != null) {
@@ -670,13 +591,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//once ERROR status is set, do not check it again
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
-                // save log add member
-                microsoftLoggingRepository.save(MicrosoftLog.builder()
-                        .event(MicrosoftLog.EVENT_ADD_MEMBER)
-                        .status(res ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                        .addData("teamId", ss.getTeamId())
-                        .addData("memberId", mu != null ? mu.getId() : "null")
-                        .build());
 			}
 			
 			//process sakai owners not in the team
@@ -696,13 +610,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 						id = sakaiProxy.getMemberKeyValue(sakaiProxy.getUser(u.getId()), mappedSakaiUserId);
 						guestUsers.put(id, mu);
 					}
-                    // save log invitation created
-                    microsoftLoggingRepository.save(MicrosoftLog.builder()
-                            .event(MicrosoftLog.EVENT_INVITATION_CREATED)
-                            .status(MicrosoftLog.Status.OK)
-                            .addData("teamId", ss.getTeamId())
-                            .addData("userId", u.getId())
-                            .build());
 				}
 				if(mu != null) {
 					//add to team/group
@@ -712,22 +619,11 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//once ERROR status is set, do not check it again
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
 				}
-
-                // save log add owner
-                microsoftLoggingRepository.save(MicrosoftLog.builder()
-                        .event(MicrosoftLog.EVENT_ADD_OWNER)
-                        .status(res ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                        .addData("teamId", ss.getTeamId())
-                        .addData("ownerId", mu != null ? mu.getId() : "null")
-                        .build());
 			}
 			
 			//process all group synchronizations related
 			if(ss.getGroupSynchronizationsList() != null && ss.getGroupSynchronizationsList().size() > 0) {
-                int groupCounter = 0;
 				for(GroupSynchronization gs : ss.getGroupSynchronizationsList()) {
-                    microsoftCommonService.getTeam(ss.getTeamId());
-                    if (groupCounter < MAX_CHANNELS) {
 					SynchronizationStatus aux_status = runGroupSynchronization(ss, gs, guestUsers, mappedSakaiUserId, mappedMicrosoftUserId);
 					if(aux_status == SynchronizationStatus.ERROR_GUEST && ret != SynchronizationStatus.ERROR) {
 						//once ERROR status is set, do not check it again
@@ -736,25 +632,8 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					if(aux_status == SynchronizationStatus.ERROR) {
 						ret = SynchronizationStatus.ERROR;
 					}
-                        // save log group synchronization
-                        microsoftLoggingRepository.save(MicrosoftLog.builder()
-                                .event(MicrosoftLog.EVENT_GROUP_SYNCHRONIZATION)
-                                .status((aux_status == SynchronizationStatus.OK) ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
-                                .addData("teamId", ss.getTeamId())
-                                .addData("groupId", gs.getGroupId())
-                                .build());
-                    }
-                    groupCounter++;
 				}
 			}
-        } else {
-            microsoftLoggingRepository.save(MicrosoftLog.builder()
-                    .event(MicrosoftLog.EVENT_SITE_SYNCRHO_END)
-                    .status(MicrosoftLog.Status.KO)
-                    .addData("siteId", ss.getSiteId())
-                    .addData("teamId", ss.getTeamId())
-                    .addData("forced", Boolean.toString(ss.isForced()))
-                    .build());
 		}
 		
 		ss.setStatus(ret);
@@ -762,17 +641,13 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 		saveOrUpdateSiteSynchronization(ss);
 		
 		//save log
-        microsoftLogs.add(MicrosoftLog.builder()
+		microsoftLoggingRepository.save(MicrosoftLog.builder()
 				.event(MicrosoftLog.EVENT_SITE_SYNCRHO_END)
 				.status((ret == SynchronizationStatus.OK) ? MicrosoftLog.Status.OK : MicrosoftLog.Status.KO)
 				.addData("siteId", ss.getSiteId())
 				.addData("teamId", ss.getTeamId())
 				.addData("forced", Boolean.toString(ss.isForced()))
 				.build());
-
-        // save logs to db
-        microsoftLoggingRepository.save(microsoftLogs);
-
 		return ret;
 	}
 	
@@ -981,12 +856,9 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				if(!res && ret != SynchronizationStatus.ERROR) {
 					//once ERROR status is set, do not check it again
 					ret = (mu != null && mu.isGuest()) ? SynchronizationStatus.ERROR_GUEST : SynchronizationStatus.ERROR;
-                    if (ret.equals(SynchronizationStatus.ERROR)) {
 				}
 			}
 		}
-
-        }
 		gs.setStatus(ret);
 		gs.setStatusUpdatedAt(ZonedDateTime.now());
 		saveOrUpdateGroupSynchronization(gs);
@@ -1020,6 +892,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				log.debug("inv group diff guests...");
 				filteredChannelMembers.getGuestIds().stream().forEach(id -> log.debug("> {} -> email={}", id, ((MicrosoftUser)filteredChannelMembers.getGuests().get(id)).getEmail()));
 			}
+
 			MicrosoftCredentials credentials = microsoftConfigRepository.getCredentials();
 			
 			for(Object o : filteredChannelMembers.getMembers().values()) {
@@ -1116,10 +989,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				//wait 1 sec
 				//site creation process in Sakai is done in two steps: 1) create empty site, 2) set title + update site
 				//hook is launched on creation, so at this point it's possible title is not establish yet... so, we wait a bit
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
+				try { Thread.sleep(1000); } catch (InterruptedException e) {}
 				
 				Site site = sakaiProxy.getSite(siteId);
 				if(site != null) {
@@ -1175,10 +1045,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 					//wait 1 sec
 					//group creation process in Sakai is done in two steps: 1) create empty group, 2) set title + update group
 					//hook is launched on creation, so at this point it's possible title is not establish yet... so, we wait a bit
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                    }
+					try { Thread.sleep(1000); } catch (InterruptedException e) {}
 					
 					Site site = sakaiProxy.getSite(siteId);
 					if(site != null) {
@@ -1194,9 +1061,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 							if(list != null) {
 								//for every relationship found
 								for(SiteSynchronization ss : list) {
-                                    Map<String, MicrosoftChannel> channelsMap = microsoftCommonService.getTeamPrivateChannels(ss.getTeamId(), true);
 									//create new channel
-                                    if (channelsMap.size() < MAX_CHANNELS) {
 									channelId = microsoftCommonService.createChannel(ss.getTeamId(), group.getTitle(), credentials.getEmail());
 									if(channelId != null) {
 										//create relationship
@@ -1219,9 +1084,6 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 												.addData("channelId", channelId)
 												.build());
 									}
-                                    } else {
-                                        log.info("It's not possible to create the group as a channel, because only it's posible to create " + MAX_CHANNELS);
-                                    }
 								}
 							}
 						}
@@ -1276,8 +1138,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 			//for every synchronization
 			for(SiteSynchronization ss : list) {
 				//remove synch
-                microsoftSiteSynchronizationRepository.delete(ss.getId());
-                ;
+				microsoftSiteSynchronizationRepository.delete(ss.getId());;
 			
 				if(microsoftConfigRepository.isAllowedDeleteTeam()) {
 					//check if Team is no longer related to any other site
@@ -1352,10 +1213,7 @@ public class MicrosoftSynchronizationServiceImpl implements MicrosoftSynchroniza
 				//wait 1 sec
 				//site unpublish process in Sakai is done in two steps: 1) set unpublished, 2) save site
 				//hook is launched when property is set, so at this point it's possible the value is not stored yet... so, we wait a bit
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
+				try { Thread.sleep(1000); } catch (InterruptedException e) {}
 				
 				Site site = sakaiProxy.getSite(siteId);
 				if(site != null && !site.isPublished()) {

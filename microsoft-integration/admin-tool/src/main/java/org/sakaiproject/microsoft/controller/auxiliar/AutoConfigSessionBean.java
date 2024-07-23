@@ -32,7 +32,6 @@ public class AutoConfigSessionBean {
 	private int total = 0;
 	private int count = -1;
 	private List<AutoConfigError> errorList = new ArrayList<>();
-	private List<String> statusList = new ArrayList<>();
 	
 	private boolean newChannel = false;
 	
@@ -66,9 +65,5 @@ public class AutoConfigSessionBean {
 		error.setErrorMessage(errorMessage);
 		errorList.add(error);
 		increaseCounter();
-	}
-
-	public void addStatus(String status) {
-		statusList.add(status);
 	}
 }

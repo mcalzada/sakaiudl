@@ -62,7 +62,7 @@ public class RunSynchronizationsJob implements Job {
 			
 			SakaiSiteFilter siteFilter = microsoftConfigurationService.getJobSiteFilter();
 			
-			List<SiteSynchronization> list = microsoftSynchronizationService.getLinkedSiteSynchronizations(true);
+			List<SiteSynchronization> list = microsoftSynchronizationService.getAllSiteSynchronizations(true);
 			for(SiteSynchronization ss : list) {
 				try {
 					//check filters
