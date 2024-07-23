@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,6 +30,7 @@ import org.sakaiproject.microsoft.api.MicrosoftConfigurationService;
 import org.sakaiproject.microsoft.api.MicrosoftSynchronizationService;
 import org.sakaiproject.microsoft.api.SakaiProxy;
 import org.sakaiproject.microsoft.api.data.MicrosoftTeam;
+import org.sakaiproject.microsoft.api.data.SynchronizationStatus;
 import org.sakaiproject.microsoft.api.exceptions.MicrosoftCredentialsException;
 import org.sakaiproject.microsoft.api.exceptions.MicrosoftGenericException;
 import org.sakaiproject.microsoft.api.model.SiteSynchronization;
@@ -50,7 +52,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import lombok.extern.log4j.Log4j2;
-
 
 /**
  * MainController
@@ -152,7 +153,9 @@ public class MainController {
 							case "teamId":
 							return i1.getTeamId().compareTo(i2.getTeamId());
 							case "teamTitle":
-							return map.get(i1.getTeamId()).getName().compareToIgnoreCase(map.get(i2.getTeamId()).getName());
+                        String fromString = Objects.isNull(map.get(i1.getTeamId())) ? "_null" : map.get(i1.getTeamId()).getName();
+                        String toString = Objects.isNull(map.get(i2.getTeamId())) ? "_null" : map.get(i2.getTeamId()).getName();
+                        return fromString.compareToIgnoreCase(toString);
 							case "siteTitle":
 							return i1.getSite().getTitle().compareToIgnoreCase(i2.getSite().getTitle());
 							case "syncDateFrom":
@@ -162,7 +165,6 @@ public class MainController {
 							case "status":
 							default:
 							return i1.getStatus().getCode().compareTo(i2.getStatus().getCode());
-						
 						}
 					});
 			
@@ -236,6 +238,10 @@ public class MainController {
 
 			model.addAttribute("row", ss);
 			model.addAttribute("teamsMap", microsoftCommonService.getTeams());
+
+            if (ss.getStatus().equals(SynchronizationStatus.ERROR)) {
+                model.addAttribute("errorMembers", microsoftCommonService.getErrorUsers());
+            }
 		}
 		return ROW_SITE_SYNCH_FRAGMENT;
 	}
