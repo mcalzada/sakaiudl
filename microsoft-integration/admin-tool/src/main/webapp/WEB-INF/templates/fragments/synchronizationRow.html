@@ -1,17 +1,32 @@
 <th:block th:fragment="siteRow(row)" th:with="df=#{date.format}">
 	<!-- Sakai Site Title -->
 	<div class="col-xs-2">
-		<th:block th:if="${row.groupSynchronizationsList?.size() > 0}">
+		<th:block th:if="${row.groupSynchronizationsList?.size() > 0 && teamsMap[row.teamId] != null}">
 			<div role="button" th:title="#{site.id(${row.siteId})}" th:onclick="toggleGroupRow([[${row.id}]])" tabindex="0">
 				<i th:id="|toggleIcon_${row.id}|" class="fa fa-caret-right"></i>
 				<span th:text="${row?.site?.title} ?: '???'"></span>
 			</div>
 		</th:block>
-		<span th:if="${row.groupSynchronizationsList?.size() == 0}" class="site-title-margin" th:text="${row?.site?.title} ?: '???'"></span>
+		<span th:if="${row.groupSynchronizationsList?.size() == 0 || teamsMap[row.teamId] == null}" class="site-title-margin" th:text="${row?.site?.title} ?: '???'"></span>
 	</div>
 	<!-- Microsoft Team Title -->
 	<div class="col-xs-2" th:title="#{team.id(${row.teamId})}">
-		<span th:text="${teamsMap[row.teamId]?.name} ?: '???'" />
+
+		<span th:if="${T(org.sakaiproject.microsoft.api.data.CreationStatus).KO != row.creationStatus && teamsMap[row.teamId] == null}" th:text="'???'"></span>
+			<div th:if="${teamsMap[row.teamId] != null || T(org.sakaiproject.microsoft.api.data.CreationStatus).KO == row.creationStatus}" >
+				<div th:switch="${row.creationStatus}" th:title="${row.creationStatus}">
+					<div  th:case="${T(org.sakaiproject.microsoft.api.data.CreationStatus).OK}"><span th:text="${teamsMap[row.teamId]?.name}"></span></div>
+					<div  th:case="${T(org.sakaiproject.microsoft.api.data.CreationStatus).KO}">
+						<span th:text="#{error.general_failure}"></span>
+						<i class="fa fa-solid fa-exclamation-triangle" style="color: #b53d3d;" th:title="#{error.general_failure}"></i>
+					</div>
+					<div  th:case="${T(org.sakaiproject.microsoft.api.data.CreationStatus).PARTIAL_OK}">
+						<span th:text="${teamsMap[row.teamId]?.name}" ></span>
+						<i class="fa fa-solid fa-exclamation-triangle" style="color: #a89e03;" th:title="#{error.channel_number_limit_reached}"></i>
+					</div>
+				</div>
+			</div>
+
 		<a href='#'
 			th:if="${teamsMap[row.teamId]?.fullyCreated == false}"
 			th:title="#{team.id(${row.teamId})}"
@@ -39,13 +54,14 @@
 		<div style="color: grey;" th:case="${T(org.sakaiproject.microsoft.api.data.SynchronizationStatus).NONE}" th:text="#{status.NONE}" />
 		<div style="color: red;" th:case="${T(org.sakaiproject.microsoft.api.data.SynchronizationStatus).ERROR}" th:text="#{status.ERROR}" />
 		<div style="color: red;" th:case="${T(org.sakaiproject.microsoft.api.data.SynchronizationStatus).ERROR_GUEST}" th:text="#{status.ERROR_GUEST}" />
+		<div style="color: grey;" th:case="${T(org.sakaiproject.microsoft.api.data.SynchronizationStatus).NOT_AVAILABLE}" th:text="#{status.NOT_AVAILABLE}" />
 	</div>
 	<!-- Forced -->
 	<div class="col-xs-1 text-center">
 		<input type="checkbox" th:checked="${row.forced}" onchange="changeForced(this)" th:aria-label="#{forced}" />
 	</div>
 	<!-- Actions (Run, Edit Groups) -->
-	<div class="col-xs-1 multi-button">
+	<div class="col-xs-1 multi-button" th:if="${row.teamId != null && row.teamId != ''}">
 		<!-- Run -->
 		<a href="#" onclick="doRun(this)" class="run-button" th:classappend="(${today.isBefore(row.syncDateFrom)} or ${today.isAfter(row.syncDateTo)})? 'hidden'">
 			<i class="fa fa-play" tabindex="0" th:title="#{index.run}"></i>
@@ -57,6 +73,8 @@
 			<i class="fa fa-users"></i>
 		</a>
 	</div>
+	<div class="col-xs-1 multi-button" th:if="${row.teamId == null || row.teamId == ''}">
+	</div>
 	<!-- Select -->
 	<div class="col-xs-1 text-center">
 		<input name="selectedIds" class="col-xs-1" type="checkbox" th:value="${row.id}" th:aria-label="#{index.selected_id}" />
@@ -67,6 +85,12 @@
 <th:block th:fragment="groupRows(siteRow)" th:with="df=#{date.format}">
 	<th:block th:if="${siteRow.groupSynchronizationsList?.size() > 0}">
 		<div class="group-table">
+			<div th:if="${ siteRow.creationStatus == T(org.sakaiproject.microsoft.api.data.CreationStatus).PARTIAL_OK}"
+				 style="background-color: #ffffcc; color: #a89e03; border: 1px solid #a89e03; padding: 10px; border-radius: 5px; margin-bottom: 10px; align-items: center;"
+				 class="yellow-box-alert">
+				<span th:text="#{group_synch.limit_reach}"></span>
+				<i class="fa fa-users"></i>
+			</div>
 			<div class="row table-space">
 				<div class="col-xs-4">
 					<span class="text-bold" th:text="#{group}"></span>

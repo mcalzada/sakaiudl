@@ -15,11 +15,7 @@
  */
 package org.sakaiproject.microsoft.api;
 
-import java.io.File;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.sakaiproject.microsoft.api.data.MeetingRecordingData;
 import org.sakaiproject.microsoft.api.data.MicrosoftChannel;
 import org.sakaiproject.microsoft.api.data.MicrosoftDriveItem;
@@ -31,6 +27,13 @@ import org.sakaiproject.microsoft.api.data.MicrosoftUserIdentifier;
 import org.sakaiproject.microsoft.api.data.TeamsMeetingData;
 import org.sakaiproject.microsoft.api.exceptions.MicrosoftCredentialsException;
 import org.sakaiproject.microsoft.api.exceptions.MicrosoftGenericException;
+import org.sakaiproject.site.api.Group;
+
+import java.io.File;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public interface MicrosoftCommonService {
 	public static final String PERM_VIEW_ALL_CHANNELS = "microsoft.channels.view.all";
@@ -39,7 +42,12 @@ public interface MicrosoftCommonService {
 	public static final String PERM_DELETE_FILES = "microsoft.documents.delete.files";
 	public static final String PERM_DELETE_FOLDERS = "microsoft.documents.delete.folders";
 	public static final String PERM_UPLOAD_FILES = "microsoft.documents.upload.files";
-	
+	public static final int MAX_CHANNELS = 30;
+	public static final int MAX_ADD_CHANNELS = 20;
+
+	public static Map<String, Object> errorUsers = new HashMap<>();
+
+
 	public static enum PermissionRoles { READ, WRITE }
 	
 	void resetCache();
@@ -52,6 +60,7 @@ public interface MicrosoftCommonService {
 	
 	// ---------------------------------------- USERS ------------------------------------------------
 	List<MicrosoftUser> getUsers() throws MicrosoftCredentialsException;
+	Map<String, Object> getErrorUsers() throws MicrosoftCredentialsException;
 
 	MicrosoftUser getUser(String identifier, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException;
 	MicrosoftUser getUserById(String id) throws MicrosoftCredentialsException;
@@ -98,9 +107,10 @@ public interface MicrosoftCommonService {
 	MicrosoftChannel getChannel(String teamId, String channelId, boolean force) throws MicrosoftCredentialsException;
 	Map<String, MicrosoftChannel> getTeamPrivateChannels(String teamId) throws MicrosoftCredentialsException;
 	Map<String, MicrosoftChannel> getTeamPrivateChannels(String teamId, boolean force) throws MicrosoftCredentialsException;
-	
+
 	String createChannel(String teamId, String name, String ownerEmail) throws MicrosoftCredentialsException;
-	
+	List<MicrosoftChannel> createChannels(List<Group> groupsToProcess, String teamId, String ownerEmail) throws MicrosoftCredentialsException, JsonProcessingException;
+
 	boolean deleteChannel(String teamId, String channelId) throws MicrosoftCredentialsException;
 	
 	MicrosoftMembersCollection getChannelMembers(String teamId, String channelId, MicrosoftUserIdentifier key) throws MicrosoftCredentialsException;
