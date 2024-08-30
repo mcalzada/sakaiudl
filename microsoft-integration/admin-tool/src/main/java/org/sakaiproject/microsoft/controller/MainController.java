@@ -142,7 +142,7 @@ public class MainController {
 		ZonedDateTime fromDate = null;
 		ZonedDateTime toDate = null;
 		boolean filterByDate = !requestBody.getFromDate().isEmpty() && !requestBody.getToDate().isEmpty();
-
+		log.debug("MainController: filter by date");
 		if (filterByDate) {
 			fromDate = LocalDate.parse(requestBody.getFromDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd")).atStartOfDay(ZoneOffset.UTC);
 			toDate = LocalDate.parse(requestBody.getToDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd")).atStartOfDay(ZoneOffset.UTC);
@@ -162,7 +162,7 @@ public class MainController {
 							(Objects.nonNull(map.get(ss.getTeamId())) && map.get(ss.getTeamId()).getName().toLowerCase().contains(lcSearch)))
 					.collect(Collectors.toList());
 		}
-
+                log.debug("MainController: after filter");
 		//sort elements
 		if (StringUtils.isNotBlank(sortBy)) {
 			String finalSortBy = sortBy;

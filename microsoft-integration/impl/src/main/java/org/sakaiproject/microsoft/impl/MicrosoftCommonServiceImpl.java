@@ -482,8 +482,10 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	public Map<String, MicrosoftTeam> retrieveCacheTeams() throws MicrosoftCredentialsException {
 		Cache.ValueWrapper cachedValue = getCache().get(CACHE_TEAMS);
 		if (cachedValue != null) {
+			log.debug("CommonService: cache is not null");
 			return (Map<String, MicrosoftTeam>) cachedValue.get();
 		}
+		log.debug("CommonService: Empty hash");
 		return new HashMap<>();
 	}
 
