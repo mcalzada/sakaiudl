@@ -407,18 +407,6 @@
 					}
 				}
 			}
-
-			.sorting_asc {
-				a::after {
-					background: url(/library/image/sakai/sortascending.gif?panel=Main);
-				}
-			}
-
-			.sorting_desc {
-				a::after {
-					background: url(/library/image/sakai/sortdescending.gif?panel=Main);
-				}
-			}
 		}
 	}
 
@@ -493,11 +481,10 @@
 		margin: 0 4px 4px 0;
 	}
 
-
 	.time-bar-container {
 		margin-top: 1em;
 	}
-
+	
 	.time-bar-button-container{
 		margin-top: 1em;
 		margin-bottom: 1em;
@@ -526,7 +513,7 @@
 					@include border-radius(0);
 				}
 			}
-			
+
 			p.input-group-addon.input-group-addon-right {
 				@include border-radius(0 $button-radius 0 0);
 			}
