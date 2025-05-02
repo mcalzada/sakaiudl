@@ -87,6 +87,7 @@ public class ExportPanel extends BasePanel {
 	boolean includeStudentNumber = true;
 	private boolean includeSectionMembership = false;
 	boolean includeStudentDisplayId = false;
+	boolean includeDNI = true;
 	boolean includeGradeItemScores = true;
 	boolean includeGradeItemComments = true;
 	boolean includeCategoryAverages = false;
@@ -152,6 +153,15 @@ public class ExportPanel extends BasePanel {
 			public boolean isVisible()
 			{
 				return ExportPanel.this.stuNumVisible;
+			}
+		});
+		add(new AjaxCheckBox("includeDNI", Model.of(this.includeDNI)) {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			protected void onUpdate(final AjaxRequestTarget ajaxRequestTarget) {
+				ExportPanel.this.includeDNI = !ExportPanel.this.includeDNI;
+				setDefaultModelObject(ExportPanel.this.includeDNI);
 			}
 		});
 
@@ -357,6 +367,9 @@ public class ExportPanel extends BasePanel {
 				if (this.stuNumVisible && (!isCustomExport || this.includeStudentNumber)) {
 					header.add(String.join(" ", IGNORE_COLUMN_PREFIX, getString("importExport.export.csv.headers.studentNumber")));
 				}
+				if (!isCustomExport || this.includeDNI) {
+					header.add(String.join(" ", IGNORE_COLUMN_PREFIX, getString("importExport.export.csv.headers.DNI")));
+				}
 				if (isCustomExport && this.includeSectionMembership) {
 					header.add(String.join(" ", IGNORE_COLUMN_PREFIX, getString("column.header.section")));
 				}
@@ -464,6 +477,9 @@ public class ExportPanel extends BasePanel {
 					if (this.stuNumVisible && (!isCustomExport || this.includeStudentNumber))
 					{
 						line.add(studentGradeInfo.getStudentNumber());
+					}
+					if (!isCustomExport || this.includeDNI) {
+						line.add(studentGradeInfo.getDNI());
 					}
 					List<String> userSections = studentGradeInfo.getSections();
 					if (isCustomExport && this.includeSectionMembership) {
