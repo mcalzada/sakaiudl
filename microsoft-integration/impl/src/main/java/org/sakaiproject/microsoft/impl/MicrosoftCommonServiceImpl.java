@@ -2176,6 +2176,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 							coorganizerIdentity.user = coorganizerIden;
 							coorganizer.identity = coorganizerIdentity;
 							coorganizer.role = OnlineMeetingRole.COORGANIZER;
+							coorganizer.upn = coorganizerUser.getEmail();
 							attendees.add(coorganizer);
 						}
 					}
@@ -2242,6 +2243,7 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 							coorganizerIdentity.user = coorganizerIden;
 							coorganizer.identity = coorganizerIdentity;
 							coorganizer.role = OnlineMeetingRole.COORGANIZER;
+							coorganizer.upn = coorganizerUser.getEmail();
 							attendees.add(coorganizer);
 						}
 					}
