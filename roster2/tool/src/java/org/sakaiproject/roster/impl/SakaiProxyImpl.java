@@ -689,10 +689,10 @@ public class SakaiProxyImpl implements SakaiProxy, Observer {
 	String propDNI = user.getProperties().getProperty("dni");
                 String dni = "";
 
-                if (propDNI != null){
-                        dni = propDNI;
-                }
-        rosterMember.setDni (dni);
+ 		if (propDNI != null && isAllowed(getCurrentUserId(), RosterFunctions.ROSTER_FUNCTION_VIEWEMAIL, site.getReference())){
+ 			dni = propDNI;
+ 		}
+ 	rosterMember.setDni(dni);
 
         Optional<SakaiPerson> sakaiPerson = sakaiPersonManager.getSakaiPerson(userId, sakaiPersonManager.getUserMutableType());
         sakaiPerson.ifPresent(sp -> {
