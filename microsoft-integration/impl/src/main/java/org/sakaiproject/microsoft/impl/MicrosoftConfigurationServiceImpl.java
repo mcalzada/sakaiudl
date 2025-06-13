@@ -32,13 +32,13 @@ import org.sakaiproject.microsoft.api.persistence.MicrosoftConfigRepository;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.log4j.Log4j2;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-@Slf4j
+@Log4j2
 @Transactional
 public class MicrosoftConfigurationServiceImpl implements MicrosoftConfigurationService {
 
