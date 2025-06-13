@@ -183,6 +183,8 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 	public static int COLUMN_SIZE = 7;
 	private static final int TEAM_CHARACTER_LIMIT = 256;// 256 is the maximum length for a Team name in the UI, no limits specified on the API docs
 	private static final int CHANNEL_CHARACTER_LIMIT = 50;// this is an official restriction
+	private static final int UDL_CODE_SIZE = 15;
+	private static final String TEAM_CHARACTER_SEPARATOR = "...";
 	private final int MAX_RETRY = 2;
 	private final int MAX_PER_REQUEST = 20;
 	private final int MAX_LENGTH = 20;
@@ -891,8 +893,8 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 						Map<String, MicrosoftTeam> teamsMap = (Map<String, MicrosoftTeam>)cachedValue.get();
 						teamsMap.put(teamId, MicrosoftTeam.builder()
 								.id(teamId)
-								.name(name)
-								.description(name)
+								.name(truncatedName)
+								.description(truncatedName)
 								.build());
 						
 						getCache().put(CACHE_TEAMS, teamsMap);
@@ -1810,7 +1812,11 @@ public class MicrosoftCommonServiceImpl implements MicrosoftCommonService {
 
 	@Override
 	public String processMicrosoftTeamName(String name) {
-		return formattedText.makeShortenedText(name, TEAM_CHARACTER_LIMIT, null, null);
+		String teamName = name.length() > TEAM_CHARACTER_LIMIT ?
+                                name.substring(0, TEAM_CHARACTER_LIMIT - UDL_CODE_SIZE - 3) + TEAM_CHARACTER_SEPARATOR + name.substring(name.length() - UDL_CODE_SIZE, name.length())
+                                :
+                                name;
+		return teamName;
 	}
 
 	@Override
