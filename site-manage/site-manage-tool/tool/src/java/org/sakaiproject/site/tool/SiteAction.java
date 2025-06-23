@@ -1571,7 +1571,7 @@ public class SiteAction extends PagedResourceActionII {
 		// all site types
 		context.put("courseSiteTypeStrings", siteService.getSiteTypeStrings("course"));
 		context.put("projectSiteTypeStrings", siteService.getSiteTypeStrings("project"));
-		context.put("projectedocentSiteTypeStrings", SiteService.getSiteTypeStrings("projectedocent"));
+		context.put("projectedocentSiteTypeStrings", siteService.getSiteTypeStrings("projectedocent"));
 		
 		//can the user create course sites?
 		context.put(STATE_SITE_ADD_COURSE, siteService.allowAddCourseSite());
@@ -1585,7 +1585,7 @@ public class SiteAction extends PagedResourceActionII {
 
 		// can the user create projectedocent sites?
 		context.put("projectedocentSiteType", STATE_PROJECTEDOCENT_SITE_TYPE);
-		context.put(STATE_SITE_ADD_PROJECTEDOCENT, SiteService.allowAddProjectedocentSite());
+		context.put(STATE_SITE_ADD_PROJECTEDOCENT, siteService.allowAddProjectedocentSite());
 
 		Site site = getStateSite(state);
 
@@ -3617,7 +3617,7 @@ public class SiteAction extends PagedResourceActionII {
 			
 			// SAK-21706/SAK-23255
 			context.put( CONTEXT_IS_ADMIN, securityService.isSuperUser() );
-			context.put( CONTEXT_SKIP_MANUAL_COURSE_CREATION, ServerConfigurationService.getBoolean( SAK_PROP_SKIP_MANUAL_COURSE_CREATION, Boolean.FALSE ) );
+			context.put( CONTEXT_SKIP_MANUAL_COURSE_CREATION, serverConfigurationService.getBoolean( SAK_PROP_SKIP_MANUAL_COURSE_CREATION, Boolean.FALSE ) );
 			context.put( CONTEXT_SKIP_COURSE_SECTION_SELECTION, serverConfigurationService.getBoolean( SAK_PROP_SKIP_COURSE_SECTION_SELECTION, Boolean.FALSE ) );
 			context.put( CONTEXT_FILTER_TERMS, serverConfigurationService.getBoolean( SAK_PROP_FILTER_TERMS, Boolean.FALSE ) );
 			
@@ -11266,7 +11266,7 @@ private Map<String, List<MyTool>> getTools(SessionState state, String type, Site
  								for (Group gd : gds){
  									site.removeGroup(gd);
  								}
- 								SiteService.save(site);
+ 								siteService.save(site);
  								gds.clear();
  							}
  							deleteGroup = false;
@@ -16469,13 +16469,13 @@ private Map<String, List<MyTool>> getTools(SessionState state, String type, Site
 
 	private int maxProjectSitesReached(){
  
- 		String cuEid = UserDirectoryService.getCurrentUser().getEid();
+ 		String cuEid = userDirectoryService.getCurrentUser().getEid();
  
  		int maxNumInt = Integer.parseInt(PROJECT_SITES_MAXNUM);
  
  		if(maxNumInt > 0)
  		{
- 			List<Site> mySitesUpdate = SiteService.getSites(org.sakaiproject.site.api.SiteService.SelectionType.UPDATE,"project", null, null, null, null);
+ 			List<Site> mySitesUpdate = siteService.getSites(org.sakaiproject.site.api.SiteService.SelectionType.UPDATE,"project", null, null, null, null);
  
  			int countMySites = 0;
  
