@@ -1826,7 +1826,7 @@ public class SiteAction extends PagedResourceActionII {
 			else{
 				context.put("maxNumOfProjectSites",PROJECT_SITES_MAXNUM);
 
-				if( maxProjReached == -1) context.put("maxProjectNotReached",false)
+				if( maxProjReached == -1) context.put("maxProjectNotReached",false);
 				else{
 					context.put("maxProjectNotReached",true);
 					context.put("actualNumOfProjectSites",Integer.toString(maxProjReached));
