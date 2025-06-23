@@ -101,6 +101,13 @@ public class MockSiteService implements SiteService
     }
 
     @Override
+    public boolean allowAddProjectedocentSite()
+    {
+        return false;
+    }
+
+
+    @Override
     public boolean allowAddSite( String id )
     {
         return false;
