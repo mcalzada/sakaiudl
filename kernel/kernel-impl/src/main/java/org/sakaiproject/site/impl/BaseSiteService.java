@@ -1254,7 +1254,7 @@ public abstract class BaseSiteService implements SiteService, Observer
 		try {
 			Site s = getSite(siteId);
 			List<String> projectedocentSiteTypes = getSiteTypeStrings("projectedocent");
-			if (projectedocentSiteTypes.contains(s.getType())
+			if (projectedocentSiteTypes.contains(s.getType()))
 				return true;
 
 		} catch (IdUnusedException e) {
