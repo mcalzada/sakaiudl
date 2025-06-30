@@ -61,6 +61,7 @@ import org.sakaiproject.exception.InUseException;
 import org.sakaiproject.exception.PermissionException;
 import org.sakaiproject.exception.TypeException;
 import org.sakaiproject.id.api.IdManager;
+import org.sakaiproject.rubrics.api.RubricsService;
 import org.sakaiproject.site.api.Site;
 import org.sakaiproject.site.api.SiteService;
 import org.sakaiproject.site.api.ToolConfiguration;
@@ -92,6 +93,8 @@ public class MessageForumsForumManagerImpl extends HibernateDaoSupport implement
     private SessionManager sessionManager;
     @Getter @Setter
     private EventTrackingService eventTrackingService;
+    @Getter @Setter
+    private RubricsService rubricsService;
     @Getter @Setter
     private SiteService siteService;
     @Getter @Setter
