@@ -307,13 +307,13 @@
     ## Footer ##
 
     #define ($showFooter)
-        #parse("/vm/morpheus/includeFooterUDL.vm")
+        #parse("/vm/morpheus/includeFooter.vm")
     #end
 
     #set($showFooter = true)
     
     #if ($showFooter)
-        #parse("/vm/morpheus/includeFooterUDL.vm")
+        #parse("/vm/morpheus/includeFooter.vm")
     #end ## END of IF ($showFooter)
 
 </div>
