@@ -22,7 +22,7 @@
 			connection is usually on 636 -->
 		<property name="ldapPort">
 			<list>
-				<value>389</value>
+				<value>636</value>
 			</list>
 		</property>
 

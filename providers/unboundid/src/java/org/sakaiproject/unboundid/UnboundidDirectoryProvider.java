@@ -88,7 +88,7 @@ public class UnboundidDirectoryProvider implements UserDirectoryProvider, LdapCo
 	@Setter private MemoryService memoryService;
 
 	/** Default LDAP connection port */
-	public static final int[] DEFAULT_LDAP_PORT = {389};
+	public static final int[] DEFAULT_LDAP_PORT = {636};
 
 	/** Default secure/unsecure LDAP connection creation behavior */
 	public static final boolean DEFAULT_IS_SECURE_CONNECTION = false;

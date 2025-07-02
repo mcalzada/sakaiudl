@@ -53,7 +53,7 @@ public class OpenLdapDirectoryProvider implements UserDirectoryProvider
 
 	private String ldapHost = ""; // address of ldap server
 
-	private int ldapPort = 389; // port to connect to ldap server on
+	private int ldapPort = 636; // port to connect to ldap server on
 
 	private String basePath = "";
 
