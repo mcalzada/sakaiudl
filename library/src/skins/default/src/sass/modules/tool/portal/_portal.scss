@@ -157,6 +157,9 @@
     word-break: break-word;
     text-overflow: ellipsis;
     max-height: 47px; /* Fallback: Setting max-height as a fallback measure */
+    &.is-gateway {
+        color: var(--sakai-color-white) !important;
+    }
   }
 }
 
@@ -166,6 +169,9 @@
     white-space: normal;
     word-wrap: break-word;
     word-break: break-word;
+    &.is-gateway {
+        color: var(--sakai-color-white) !important;
+    }
   }
 }
 
@@ -433,6 +439,9 @@
 #portal-nav-sidebar {
 
   grid-area: sidebar;
+  &.is-gateway {
+  	background-image: var(--bg-image);
+  }
 
   .si-pin {
     &:hover::before,
@@ -614,6 +623,9 @@
         color: var(--site-nav-btn-page-hover-color) !important;
         background-color: transparent;
       }
+    }
+    &.is-gateway {
+	color: var(--sakai-color-white) !important;
     }
 
     span {
