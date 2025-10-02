@@ -1113,7 +1113,7 @@ public class PortletIFrame extends GenericPortlet {
 					// configurem l'idioma
 					if (!idioma.equals("ca")){
 						String urlServerLocalized = urlServer.replace("ca/",idioma+"/");
-						rv = urlServerLocalized+"_"+codiAss;
+						rv = urlServerLocalized+anySite+"_"+codiAss;
 					}
 					else {
 						 rv = urlServer+anySite+"_"+codiAss;
