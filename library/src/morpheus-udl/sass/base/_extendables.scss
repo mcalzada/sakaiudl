@@ -287,9 +287,9 @@ input::placeholder {
 
 .nav.nav-tabs, .sakai_tabs{
 	margin: 0 0.4em 0 0;
-	> li{
+	 li{
 		&.active, &.selected, &.activeTab{
-			> a{
+			 a{
 				background: var(--tool-tab-active-background-color);
 				border-top: 1px solid var(--sakai-border-color);
 				border-left: 1px solid var(--sakai-border-color);
@@ -321,7 +321,7 @@ input::placeholder {
 				}
 			}
 		}
-		> a{
+		a{
 			background: var(--tool-tab-background-color);
 			border: 1px solid var(--sakai-border-color);
 			color: var(--sakai-text-color-1);
@@ -491,11 +491,11 @@ a.noPointers, input.noPointers {
 	@include align-items(center);
 	margin: $standard-spacing 0;
 	
-	> input, 
-	> button,
-	> a,
-	> a[href],
-	< .active {
+	 input, 
+	 button,
+	 a,
+	 a[href],
+	 .active {
 		margin-right: $standard-space;
     margin-top: $standard-space;
 		
