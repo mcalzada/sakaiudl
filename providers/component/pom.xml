@@ -32,10 +32,10 @@
 			<groupId>org.sakaiproject</groupId>
 			<artifactId>sakai-jldap-provider</artifactId>
 		</dependency>   -->
-		<dependency>
+		<!-- <dependency>
 			<groupId>org.sakaiproject</groupId>
 			<artifactId>sakai-kerberos-provider</artifactId>
-		</dependency>
+		</dependency> -->
 		<dependency>
 			<groupId>org.sakaiproject</groupId>
 			<artifactId>sakai-imsent-provider</artifactId>
@@ -48,10 +48,10 @@
 			<groupId>org.sakaiproject</groupId>
 			<artifactId>sakai-federating-provider</artifactId>
 		</dependency>
-		<dependency>
+		<!-- <dependency>
 			<groupId>org.sakaiproject</groupId>
 			<artifactId>sakai-allhands-provider</artifactId>
-		</dependency>
+		</dependency> -->
 	</dependencies>
 	<build>
 		<resources/>

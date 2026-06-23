@@ -53,11 +53,11 @@
         <artifactId>sakai-userdetail-provider</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <dependency>
+      <!--<dependency>
         <groupId>org.sakaiproject</groupId>
         <artifactId>sakai-kerberos-provider</artifactId>
         <version>${project.version}</version>
-      </dependency>
+      </dependency>-->
       <dependency>
         <groupId>org.sakaiproject</groupId>
         <artifactId>sakai-imsent-provider</artifactId>
@@ -68,11 +68,11 @@
         <artifactId>sakai-federating-provider</artifactId>
         <version>${project.version}</version>
       </dependency>
-      <dependency>
+      <!-- <dependency>
         <groupId>org.sakaiproject</groupId>
         <artifactId>sakai-allhands-provider</artifactId>
         <version>${project.version}</version>
-      </dependency>
+      </dependency>-->
       <dependency>
         <groupId>org.sakaiproject</groupId>
         <artifactId>sakai-jldap-provider-mock</artifactId>
