@@ -49,6 +49,13 @@
     &.sidebar-collapsed {
       display: none;
     }
+    &.is-gateway {
+      .lateralImage {
+        background-image: var(--bg-image);
+        background-size: cover;
+        background-repeat: no-repeat;
+      }
+    }  
     a {
       text-decoration: none;
     }
@@ -184,6 +191,9 @@
     word-break: break-word;
     text-overflow: ellipsis;
     max-height: 47px; /* Fallback: Setting max-height as a fallback measure */
+    &.is-gateway {
+        color: var(--sakai-color-white) !important;
+    }
   }
 }
 
@@ -193,6 +203,9 @@
     white-space: normal;
     word-wrap: break-word;
     word-break: break-word;
+    &.is-gateway {
+        color: var(--sakai-color-white) !important;
+    }
   }
 }
 
@@ -719,7 +732,9 @@
         background-color: transparent;
       }
     }
-
+    &.is-gateway {
+	color: var(--sakai-color-white) !important;
+    }
     span {
       margin-left: 5px;
     }
